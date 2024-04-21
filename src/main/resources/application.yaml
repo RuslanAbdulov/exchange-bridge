@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: exchange-bridge
+  docker:
+    compose:
+      enabled: false
+      file: docker-compose.yml
+  data:
+    jpa:
+      repositories:
+        enabled: false
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+  datasource:
+    driverClassName: org.sqlite.JDBC
+    url: jdbc:sqlite:exchange-bridge.db
+#    url: jdbc:sqlite:memory:myDb?cache=shared
+    username: sa
+    password: sa
+
+#  autoconfigure:
+#    exclude:
+#      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+    jdbc:
+      repositories:
+        enabled: false
+    r2dbc:
+      repositories:
+        enabled: false
+
+
+
+server:
+  port: 9000
+
+hgstrat:
+  binance:
+    api-key: Vo5TqUcQ4mSlR0e81vT9vk0n03NSwyXQ4ewt2A2amsSV4rLiuHgEUIKiqcsthqHd
+    secret-key: g9VwDtm2VtwubUSFlHOJklifQN3CgGwVv2HyZBKunaGBtHZzxs4vOIDjFwumCWh4
