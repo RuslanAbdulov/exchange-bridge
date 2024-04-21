@@ -1,0 +1,14 @@
+POST localhost:9000/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.1,
+  "quantity": 50,
+  "originOrderId": "test2",
+  "timeFrame": "17"
+}
+
+###

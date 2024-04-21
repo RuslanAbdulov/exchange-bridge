@@ -1,12 +1,18 @@
 package com.hgstrat.exchangebridge.controller
 
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import com.hgstrat.exchangebridge.service.Order
+import com.hgstrat.exchangebridge.service.OrderService
+import org.springframework.web.bind.annotation.*
 
-@RestController
-class OrderController {
+@RestController("/")
+class OrderController (val orderService: OrderService) {
 
-    @GetMapping("/")
-    fun index(@RequestParam("name") name: String) = "Hello, $name!"
+    @GetMapping("/test")
+    fun index(@RequestParam("name", required = false) name: String) = "Hello, $name!"
+
+    @PostMapping("/webhook/tv/{account}/")
+    fun tvWebhook(@RequestBody order: Order,
+                  @PathVariable("account") account: String) {
+        orderService.process(order, account)
+    }
 }

@@ -20,11 +20,9 @@ spring:
 #    url: jdbc:sqlite:memory:myDb?cache=shared
     username: sa
     password: sa
-
 #  autoconfigure:
 #    exclude:
 #      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
-
     jdbc:
       repositories:
         enabled: false
@@ -32,12 +30,10 @@ spring:
       repositories:
         enabled: false
 
-
-
 server:
   port: 9000
 
 hgstrat:
   binance:
-    api-key: Vo5TqUcQ4mSlR0e81vT9vk0n03NSwyXQ4ewt2A2amsSV4rLiuHgEUIKiqcsthqHd
-    secret-key: g9VwDtm2VtwubUSFlHOJklifQN3CgGwVv2HyZBKunaGBtHZzxs4vOIDjFwumCWh4
+    api-key: ${binance-api-key}
+    secret-key: ${binance-secret-key}
