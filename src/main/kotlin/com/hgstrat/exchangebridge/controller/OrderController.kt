@@ -7,12 +7,17 @@ import org.springframework.web.bind.annotation.*
 @RestController("/")
 class OrderController (val orderService: OrderService) {
 
-    @GetMapping("/test")
-    fun index(@RequestParam("name", required = false) name: String) = "Hello, $name!"
+    @GetMapping("/")
+    fun index() = "Ok!"
 
     @PostMapping("/webhook/tv/{account}/")
     fun tvWebhook(@RequestBody order: Order,
                   @PathVariable("account") account: String) {
         orderService.process(order, account)
+    }
+
+    @PostMapping("/new-order/")
+    fun newOrderProxy(@RequestBody parameters: LinkedHashMap<String, Any?>): String {
+        return orderService.newOrderProxy(parameters)
     }
 }

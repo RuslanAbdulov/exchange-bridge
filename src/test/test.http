@@ -5,10 +5,129 @@ Content-Type: application/json
   "symbol": "ONEUSDT",
   "side": "SELL",
   "type": "LIMIT",
-  "price": 0.1,
-  "quantity": 50,
+  "price": 0.04,
+  "quantity": 125,
   "originOrderId": "test2",
-  "timeFrame": "17"
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041
+}
+
+###
+
+
+POST localhost:9000/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 0.01,
+  "quantity": 500,
+  "originOrderId": "test1",
+  "timeFrame": "17",
+  "takeProfit": 0.02,
+  "stopLoss": 0.019
+}
+
+###
+
+
+
+POST https://1247-5-134-58-242.ngrok-free.app/webhook/tv/TVB-111/
+Content-Type: application/json;charset=utf-8
+
+###
+
+
+GET https://1247-5-134-58-242.ngrok-free.app/
+###
+
+GET http://192.168.0.103:9000/
+###
+
+
+#1. order
+POST localhost:9000/new-order/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "positionSide": "BOTH",
+  "type": "LIMIT",
+  "timeInForce": "GTC",
+  "quantity": 125,
+  "price": 0.04,
+  "newClientOrderId": "test1"
+}
+
+###
+
+#2. Take profit
+POST localhost:9000/new-order/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "BUY",
+  "positionSide": "BOTH",
+  "type": "TAKE_PROFIT",
+  "timeInForce": "GTE_GTC",
+  "quantity": 125,
+  "price": 0.01099,
+  "stopPrice": 0.01,
+  "newClientOrderId": "test1_tp",
+  "workingType": "MARK_PRICE",
+  "priceProtect": true,
+  "reduceOnly": true
+}
+
+###
+#{"orderId":6007768059,"symbol":"ONEUSDT","status":"NEW","clientOrderId":"test1_tp","price":"0.01099","avgPrice":"0.00","origQty":"125","executedQty":"0","cumQty":"0","cumQuote":"0.00000","timeInForce":"GTE_GTC","type":"TAKE_PROFIT","reduceOnly":true,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0.01000","workingType":"MARK_PRICE","priceProtect":true,"origType":"TAKE_PROFIT","priceMatch":"NONE","selfTradePreventionMode":"NONE","goodTillDate":0,"updateTime":1714336981491}
+
+
+
+#3. Stop loss
+POST localhost:9000/new-order/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "BUY",
+  "positionSide": "BOTH",
+  "type": "STOP",
+  "timeInForce": "GTE_GTC",
+  "quantity": 125,
+  "price": 0.04,
+  "stopPrice": 0.041,
+  "newClientOrderId": "test1_sl",
+  "workingType": "MARK_PRICE",
+  "priceProtect": true,
+  "reduceOnly": true
+}
+
+###
+#{"orderId":6007781138,"symbol":"ONEUSDT","status":"NEW","clientOrderId":"test1_sl","price":"0.04000","avgPrice":"0.00","origQty":"125","executedQty":"0","cumQty":"0","cumQuote":"0.00000","timeInForce":"GTE_GTC","type":"STOP","reduceOnly":true,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0.04100","workingType":"MARK_PRICE","priceProtect":true,"origType":"STOP","priceMatch":"NONE","selfTradePreventionMode":"NONE","goodTillDate":0,"updateTime":1714337927810}
+
+
+POST localhost:9000/new-order/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "BUY",
+  "positionSide": "BOTH",
+  "type": "TAKE_PROFIT",
+  "timeInForce": "GTE_GTC",
+  "quantity": 125,
+  "price": 0.04,
+  "stopPrice": 0.039,
+  "newClientOrderId": "test1_tp2",
+  "workingType": "MARK_PRICE",
+  "priceProtect": true,
+  "reduceOnly": true
 }
 
 ###

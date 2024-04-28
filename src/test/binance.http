@@ -1,0 +1,107 @@
+# curl 'https://www.binance.com/bapi/futures/v1/private/future/strategy/place-order'
+#  -H 'accept: */*'
+#  -H 'accept-language: ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
+#  -H 'bnc-uuid: 97968ff7-ecda-4c19-bb0d-4edc1493a854'
+#  -H 'clienttype: web'
+#  -H 'content-type: application/json'
+#  -H 'cookie: se_sd=woBUwQA8IEbUF1VIIVQIgZZAhDlcOETV1oF9ZVERllUWgD1NWUcM1; _h_desk_key=ae83db63dd78474e9f928ddfb7a4d57c; theme=dark; bnc-uuid=97968ff7-ecda-4c19-bb0d-4edc1493a854; BNC_FV_KEY=33da0c6a7d8ca99cad383d8bdc32dbe184cf2c7b; OptanonAlertBoxClosed=2024-04-19T23:38:29.297Z; changeBasisTimeZone=; userPreferredCurrency=USD_USD; se_gd=RgNGRXxABGNEQBawVUFMgZZHhUFcIBTUFsSdZUUJ1JRVAF1NWU4R1; se_gsd=RTQ2PDBWIywkGSMhJTY7MAQrVRBbBAoAUlhHVFRTUlJXI1NT1; BNC-Location=BINANCE; source=referral; campaign=www.binance.com; BNC_FV_KEY_T=101-SZfxK3J6h0Z9KL2VtpJ84ZzAjPOYzWB%2B%2BK3P%2FycVwtIFaxDsPkz0EwSiX3DmwM1GuoNTu0WmG9e2S0bNf3GlPw%3D%3D-wg%2BkmpuqS9DMYz8MsWwpoQ%3D%3D-09; BNC_FV_KEY_EXPIRE=1713916947220; s9r1=8E441F9E1D2D1A06CF69EFC5AFCCE6B4; cr00=A8C18C59DEEEA203C4B9F357EA73EC53; d1og=web.802483527.C93A476428A890BF16891F4306EEC91A; r2o1=web.802483527.03C8A455E5BCC2CDB41C9C5BA13C50D1; f30l=web.802483527.5CE4E0921801D2D4A8D6133AFDAF7308; logined=y; __BNC_USER_DEVICE_ID__={"f3e037cc3fc8b4ae29bf716922ed869c":{"date":1713895521895,"value":""}}; p20t=web.802483527.B7542EEC5D550DA88A73DA0F683A34B7; lang=en; futures-layout=pro; sensorsdata2015jssdkcross=%7B%22distinct_id%22%3A%22802483527%22%2C%22first_id%22%3A%2218ef8b9a6aa1dba-0b408b57b8a4a08-1c525637-1296000-18ef8b9a6ab26b2%22%2C%22props%22%3A%7B%22%24latest_traffic_source_type%22%3A%22%E5%BC%95%E8%8D%90%E6%B5%81%E9%87%8F%22%2C%22%24latest_search_keyword%22%3A%22%E6%9C%AA%E5%8F%96%E5%88%B0%E5%80%BC%22%2C%22%24latest_referrer%22%3A%22https%3A%2F%2Fduckduckgo.com%2F%22%7D%2C%22identities%22%3A%22eyIkaWRlbnRpdHlfY29va2llX2lkIjoiMThlZjhiOWE2YWExZGJhLTBiNDA4YjU3YjhhNGEwOC0xYzUyNTYzNy0xMjk2MDAwLTE4ZWY4YjlhNmFiMjZiMiIsIiRpZGVudGl0eV9sb2dpbl9pZCI6IjgwMjQ4MzUyNyJ9%22%2C%22history_login_id%22%3A%7B%22name%22%3A%22%24identity_login_id%22%2C%22value%22%3A%22802483527%22%7D%2C%22%24device_id%22%3A%2218ef8b9a6aa1dba-0b408b57b8a4a08-1c525637-1296000-18ef8b9a6ab26b2%22%7D; OptanonConsent=isGpcEnabled=1&datestamp=Tue+Apr+23+2024+23%3A23%3A54+GMT%2B0400+(Azerbaijan+Standard+Time)&version=202402.1.0&hosts=&groups=C0001%3A1%2CC0003%3A1%2CC0004%3A1%2CC0002%3A1&landingPath=NotLandingPage&consentId=eac8e4d5-19f1-4e24-b060-75dac990f6b3'
+#  -H 'csrftoken: 85383d4ef96e1f8a80f286d3ba86ddcf'
+#  -H 'device-info: eyJzY3JlZW5fcmVzb2x1dGlvbiI6IjkwMCwxNDQwIiwiYXZhaWxhYmxlX3NjcmVlbl9yZXNvbHV0aW9uIjoiOTAwLDE0NDAiLCJzeXN0ZW1fdmVyc2lvbiI6Ik1hYyBPUyAxMC4xNS43IiwiYnJhbmRfbW9kZWwiOiJ1bmtub3duIiwic3lzdGVtX2xhbmciOiJydS1SVSIsInRpbWV6b25lIjoiR01UKzA0OjAwIiwidGltZXpvbmVPZmZzZXQiOi0yNDAsInVzZXJfYWdlbnQiOiJNb3ppbGxhLzUuMCAoTWFjaW50b3NoOyBJbnRlbCBNYWMgT1MgWCAxMF8xNV83KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTIzLjAuMC4wIFNhZmFyaS81MzcuMzYiLCJsaXN0X3BsdWdpbiI6IlBERiBWaWV3ZXIsQ2hyb21lIFBERiBWaWV3ZXIsQ2hyb21pdW0gUERGIFZpZXdlcixNaWNyb3NvZnQgRWRnZSBQREYgVmlld2VyLFdlYktpdCBidWlsdC1pbiBQREYiLCJjYW52YXNfY29kZSI6ImU3MjcyNDgyIiwid2ViZ2xfdmVuZG9yIjoiR29vZ2xlIEluYy4gKEFwcGxlKSIsIndlYmdsX3JlbmRlcmVyIjoiQU5HTEUgKEFwcGxlLCBBTkdMRSBNZXRhbCBSZW5kZXJlcjogQXBwbGUgTTEsIFVuc3BlY2lmaWVkIFZlcnNpb24pIiwiYXVkaW8iOiIxMjQuMDQzNDQ5Njg0NzUxOTgiLCJwbGF0Zm9ybSI6Ik1hY0ludGVsIiwid2ViX3RpbWV6b25lIjoiQXNpYS9CYWt1IiwiZGV2aWNlX25hbWUiOiJDaHJvbWUgVjEyMy4wLjAuMCAoTWFjIE9TKSIsImZpbmdlcnByaW50IjoiYzM4YjhkOTQwYmYxMGY3NzFiYWQ5M2E4ZGM5NTk2ZTMiLCJkZXZpY2VfaWQiOiIiLCJyZWxhdGVkX2RldmljZV9pZHMiOiIifQ=='
+#  -H 'dnt: 1'
+#  -H 'fvideo-id: 33da0c6a7d8ca99cad383d8bdc32dbe184cf2c7b'
+#  -H 'lang: en'
+#  -H 'origin: https://www.binance.com'
+#  -H 'referer: https://www.binance.com/en/futures/ONEUSDT'
+#  -H 'sec-ch-ua: "Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"'
+#  -H 'sec-ch-ua-mobile: ?0'
+#  -H 'sec-ch-ua-platform: "macOS"'
+#  -H 'sec-fetch-dest: empty'
+#  -H 'sec-fetch-mode: cors'
+#  -H 'sec-fetch-site: same-origin'
+#  -H 'sec-gpc: 1'
+#  -H 'user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
+#  -H 'x-passthrough-token;'
+#  -H 'x-trace-id: d52b80cf-14eb-4d1b-9977-3470bc24af2d'
+#  -H 'x-ui-request-trace: d52b80cf-14eb-4d1b-9977-3470bc24af2d'
+#  --data-raw '{"strategyType":"OTOCO","subOrderList":[{"strategySubId":1,"firstDrivenId":0,"secondDrivenId":0,"side":"SELL","positionSide":"BOTH","symbol":"ONEUSDT","type":"LIMIT","timeInForce":"GTC","quantity":100,"price":"0.05","securityType":"USDT_FUTURES","reduceOnly":false},{"side":"BUY","positionSide":"BOTH","symbol":"ONEUSDT","securityType":"USDT_FUTURES","firstTrigger":"PLACE_ORDER","firstDrivenOn":"PARTIALLY_FILLED_OR_FILLED","timeInForce":"GTE_GTC","reduceOnly":true,"quantity":100,"strategySubId":2,"firstDrivenId":1,"secondDrivenId":3,"secondDrivenOn":"PARTIALLY_FILLED_OR_FILLED","secondTrigger":"CANCEL_ORDER","stopPrice":"0.04","workingType":"MARK_PRICE","type":"TAKE_PROFIT_MARKET","priceProtect":true},{"side":"BUY","positionSide":"BOTH","symbol":"ONEUSDT","securityType":"USDT_FUTURES","firstTrigger":"PLACE_ORDER","firstDrivenOn":"PARTIALLY_FILLED_OR_FILLED","timeInForce":"GTE_GTC","reduceOnly":true,"quantity":100,"strategySubId":3,"firstDrivenId":1,"secondDrivenId":2,"secondDrivenOn":"PARTIALLY_FILLED_OR_FILLED","secondTrigger":"CANCEL_ORDER","stopPrice":"0.06","workingType":"MARK_PRICE","type":"STOP_MARKET","priceProtect":true}]}'
+POST https://www.binance.com/bapi/futures/v1/private/future/strategy/place-order
+accept: */*
+bnc-uuid: 97968ff7-ecda-4c19-bb0d-4edc1493a854
+csrftoken: 85383d4ef96e1f8a80f286d3ba86ddcf
+device-info: eyJzY3JlZW5fcmVzb2x1dGlvbiI6IjkwMCwxNDQwIiwiYXZhaWxhYmxlX3NjcmVlbl9yZXNvbHV0aW9uIjoiOTAwLDE0NDAiLCJzeXN0ZW1fdmVyc2lvbiI6Ik1hYyBPUyAxMC4xNS43IiwiYnJhbmRfbW9kZWwiOiJ1bmtub3duIiwic3lzdGVtX2xhbmciOiJydS1SVSIsInRpbWV6b25lIjoiR01UKzA0OjAwIiwidGltZXpvbmVPZmZzZXQiOi0yNDAsInVzZXJfYWdlbnQiOiJNb3ppbGxhLzUuMCAoTWFjaW50b3NoOyBJbnRlbCBNYWMgT1MgWCAxMF8xNV83KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTIzLjAuMC4wIFNhZmFyaS81MzcuMzYiLCJsaXN0X3BsdWdpbiI6IlBERiBWaWV3ZXIsQ2hyb21lIFBERiBWaWV3ZXIsQ2hyb21pdW0gUERGIFZpZXdlcixNaWNyb3NvZnQgRWRnZSBQREYgVmlld2VyLFdlYktpdCBidWlsdC1pbiBQREYiLCJjYW52YXNfY29kZSI6ImU3MjcyNDgyIiwid2ViZ2xfdmVuZG9yIjoiR29vZ2xlIEluYy4gKEFwcGxlKSIsIndlYmdsX3JlbmRlcmVyIjoiQU5HTEUgKEFwcGxlLCBBTkdMRSBNZXRhbCBSZW5kZXJlcjogQXBwbGUgTTEsIFVuc3BlY2lmaWVkIFZlcnNpb24pIiwiYXVkaW8iOiIxMjQuMDQzNDQ5Njg0NzUxOTgiLCJwbGF0Zm9ybSI6Ik1hY0ludGVsIiwid2ViX3RpbWV6b25lIjoiQXNpYS9CYWt1IiwiZGV2aWNlX25hbWUiOiJDaHJvbWUgVjEyMy4wLjAuMCAoTWFjIE9TKSIsImZpbmdlcnByaW50IjoiYzM4YjhkOTQwYmYxMGY3NzFiYWQ5M2E4ZGM5NTk2ZTMiLCJkZXZpY2VfaWQiOiIiLCJyZWxhdGVkX2RldmljZV9pZHMiOiIifQ==
+dnt: 1
+fvideo-id: 33da0c6a7d8ca99cad383d8bdc32dbe184cf2c7b
+origin: https://www.binance.com
+referer: https://www.binance.com/en/futures/ONEUSDT
+sec-fetch-dest: empty
+sec-fetch-mode: cors
+sec-fetch-site: same-origin
+sec-gpc: 1
+user-agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36
+x-passthrough-token:
+x-trace-id: d52b80cf-14eb-4d1b-9977-3470bc24af2d
+x-ui-request-trace: d52b80cf-14eb-4d1b-9977-3470bc24af2d
+Content-Type: application/json
+
+{
+  "strategyType": "OTOCO",
+  "subOrderList": [
+    {
+      "strategySubId": 1,
+      "firstDrivenId": 0,
+      "secondDrivenId": 0,
+      "side": "SELL",
+      "positionSide": "BOTH",
+      "symbol": "ONEUSDT",
+      "type": "LIMIT",
+      "timeInForce": "GTC",
+      "quantity": 100,
+      "price": "0.05",
+      "securityType": "USDT_FUTURES",
+      "reduceOnly": false
+    },
+    {
+      "side": "BUY",
+      "positionSide": "BOTH",
+      "symbol": "ONEUSDT",
+      "securityType": "USDT_FUTURES",
+      "firstTrigger": "PLACE_ORDER",
+      "firstDrivenOn": "PARTIALLY_FILLED_OR_FILLED",
+      "timeInForce": "GTE_GTC",
+      "reduceOnly": true,
+      "quantity": 100,
+      "strategySubId": 2,
+      "firstDrivenId": 1,
+      "secondDrivenId": 3,
+      "secondDrivenOn": "PARTIALLY_FILLED_OR_FILLED",
+      "secondTrigger": "CANCEL_ORDER",
+      "stopPrice": "0.04",
+      "workingType": "MARK_PRICE",
+      "type": "TAKE_PROFIT_MARKET",
+      "priceProtect": true
+    },
+    {
+      "side": "BUY",
+      "positionSide": "BOTH",
+      "symbol": "ONEUSDT",
+      "securityType": "USDT_FUTURES",
+      "firstTrigger": "PLACE_ORDER",
+      "firstDrivenOn": "PARTIALLY_FILLED_OR_FILLED",
+      "timeInForce": "GTE_GTC",
+      "reduceOnly": true,
+      "quantity": 100,
+      "strategySubId": 3,
+      "firstDrivenId": 1,
+      "secondDrivenId": 2,
+      "secondDrivenOn": "PARTIALLY_FILLED_OR_FILLED",
+      "secondTrigger": "CANCEL_ORDER",
+      "stopPrice": "0.06",
+      "workingType": "MARK_PRICE",
+      "type": "STOP_MARKET",
+      "priceProtect": true
+    }
+  ]
+}
+
+###
+

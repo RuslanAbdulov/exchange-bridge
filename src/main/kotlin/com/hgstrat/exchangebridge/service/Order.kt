@@ -11,5 +11,7 @@ data class Order(
     val quantity: BigDecimal, //50
     val originOrderId: String?, //test1
     val goodTillDate: Instant?, //1713718068000
-    val timeFrame: String?
+    val timeFrame: String?,
+    val stopLoss: BigDecimal?,
+    val takeProfit: BigDecimal?
 )
