@@ -5,7 +5,7 @@ import org.openqa.selenium.WebDriver
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 
-@Service
+//@Service
 class BinanceUIService(private val driver: WebDriver) {
 
     fun placeOrder(price: BigDecimal) {
@@ -14,10 +14,6 @@ class BinanceUIService(private val driver: WebDriver) {
         }
         FuturesPage(driver).setPrice(price.toString());
     }
-
-
-
-
 
     @PreDestroy
     fun tearDown() {

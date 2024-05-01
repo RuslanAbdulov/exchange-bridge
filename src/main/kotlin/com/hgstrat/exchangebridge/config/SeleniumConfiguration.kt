@@ -7,7 +7,7 @@ import org.openqa.selenium.chrome.ChromeOptions
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-@Configuration
+//@Configuration
 class SeleniumConfiguration {
 
     @Bean
