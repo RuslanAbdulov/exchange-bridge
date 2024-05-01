@@ -3,10 +3,10 @@ package com.hgstrat.exchangebridge.service
 import com.binance.connector.futures.client.impl.UMFuturesClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
-
 
 @Service
 class OrderService(
@@ -14,6 +14,9 @@ class OrderService(
     @Value("\${hgstrat.binance.secret-key}") val secretKey: String,
     val objectMapper: ObjectMapper
 ) {
+    companion object {
+        val LOG = LoggerFactory.getLogger(OrderService::class.java.name)
+    }
 
     var client: UMFuturesClientImpl = UMFuturesClientImpl(apiKey, secretKey)
 
@@ -55,6 +58,7 @@ class OrderService(
         val takeProfitOrder: Map<String, String>
         try {
             val tpResponse = placeTakeProfit(order)
+            LOG.info(tpResponse)
             takeProfitOrder = objectMapper.readValue(tpResponse)
         } catch (e: Exception) {
             cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
@@ -63,6 +67,7 @@ class OrderService(
 
         try {
             val slResponse = placeStopLoss(order)
+            LOG.info(slResponse)
         } catch (e: Exception) {
             cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
             cancelOrder(order.symbol, takeProfitOrder["orderId"]!!.toLong())
@@ -151,5 +156,7 @@ class OrderService(
         else
             symbol
     }
+
+
 
 }

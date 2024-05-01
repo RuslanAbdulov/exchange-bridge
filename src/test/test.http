@@ -131,3 +131,20 @@ Content-Type: application/json
 }
 
 ###
+
+
+POST localhost:9000/new-order/ui/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.04,
+  "quantity": 125,
+  "originOrderId": "test2",
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041
+}
+###

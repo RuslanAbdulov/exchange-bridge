@@ -35,6 +35,9 @@ dependencies {
 	implementation("org.xerial:sqlite-jdbc:3.45.3.0")
 //	implementation("net.openhft:chronicle-map:3.25ea6")
 	implementation("io.github.binance:binance-futures-connector-java:3.0.3")
+	implementation("org.seleniumhq.selenium:selenium-java:4.20.0")
+	implementation("org.seleniumhq.selenium:selenium-support:4.20.0")
+	implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
