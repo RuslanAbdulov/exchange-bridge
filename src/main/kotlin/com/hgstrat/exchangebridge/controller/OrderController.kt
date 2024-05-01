@@ -7,8 +7,8 @@ import org.springframework.web.bind.annotation.*
 
 @RestController("/")
 class OrderController (
-    val orderService: OrderService,
-    val uiService : BinanceUIService
+    val orderService: OrderService
+//    val uiService : BinanceUIService
 ) {
 
     @GetMapping("/")
@@ -27,7 +27,7 @@ class OrderController (
 
     @PostMapping("/new-order/ui/")
     fun newOrderViaUI(@RequestBody order: Order) {
-        uiService.placeOrder(order.price)
+//        uiService.placeOrder(order.price)
     }
 
 

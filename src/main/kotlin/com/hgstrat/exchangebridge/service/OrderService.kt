@@ -1,8 +1,11 @@
 package com.hgstrat.exchangebridge.service
 
 import com.binance.connector.futures.client.impl.UMFuturesClientImpl
+import com.binance.connector.futures.client.impl.UMWebsocketClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import jakarta.annotation.PostConstruct
+import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -10,15 +13,22 @@ import java.math.BigDecimal
 
 @Service
 class OrderService(
-    @Value("\${hgstrat.binance.api-key}") val apiKey: String,
-    @Value("\${hgstrat.binance.secret-key}") val secretKey: String,
+    var restClient: UMFuturesClientImpl,
+    var wsClient: UMWebsocketClientImpl,
     val objectMapper: ObjectMapper
 ) {
+
     companion object {
-        val LOG = LoggerFactory.getLogger(OrderService::class.java.name)
+        val log = LoggerFactory.getLogger(OrderService::class.java.name)
     }
 
-    var client: UMFuturesClientImpl = UMFuturesClientImpl(apiKey, secretKey)
+    @PostConstruct
+    fun listen() {
+        restClient.account()
+        val listenKey = restClient.userData().createListenKey()
+        restClient.userData().extendListenKey()
+        wsClient.listenUserStream(listenKey, ({event -> log.info(event) }));
+    }
 
     //TODO get api key for the account
     fun process(order: Order, account: String) {
@@ -36,7 +46,7 @@ class OrderService(
 //        val msg0:  Map<String,String> = objectMapper.readValue(result, typeRef)
 
     fun newOrderProxy(parameters: LinkedHashMap<String, Any?>): String {
-        val result = client.account().newOrder(parameters)
+        val result = restClient.account().newOrder(parameters)
         //val msg: Map<String,String> = objectMapper.readValue(result)
         return result
     }
@@ -58,7 +68,7 @@ class OrderService(
         val takeProfitOrder: Map<String, String>
         try {
             val tpResponse = placeTakeProfit(order)
-            LOG.info(tpResponse)
+            log.info(tpResponse)
             takeProfitOrder = objectMapper.readValue(tpResponse)
         } catch (e: Exception) {
             cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
@@ -67,7 +77,7 @@ class OrderService(
 
         try {
             val slResponse = placeStopLoss(order)
-            LOG.info(slResponse)
+            log.info(slResponse)
         } catch (e: Exception) {
             cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
             cancelOrder(order.symbol, takeProfitOrder["orderId"]!!.toLong())
@@ -75,7 +85,8 @@ class OrderService(
         }
     }
 
-    //TODO goodTillDate
+    //TODO goodTillDate or auto close by countdownTime
+    // https://github.com/binance/binance-futures-connector-java/blob/main/src/test/java/examples/um_futures/account/AutoCancelOpen.java
     fun placeOrder(order: Order): String {
         val parameters = LinkedHashMap<String, Any?>()
 
@@ -91,7 +102,7 @@ class OrderService(
         //"securityType": "USDT_FUTURES",
         //parameters["reduceOnly"] = false
 
-        return client.account().newOrder(parameters)
+        return restClient.account().newOrder(parameters)
     }
 
     fun placeTakeProfit(order: Order): String {
@@ -121,7 +132,7 @@ class OrderService(
             else
                 null
 
-        return client.account().newOrder(parameters)
+        return restClient.account().newOrder(parameters)
     }
 
 //    fun placeStopLoss(order: Order): String {
@@ -146,9 +157,8 @@ class OrderService(
         parameters["symbol"] = trimSymbol(symbol)
         parameters["orderId"] = orderId
 
-        return client.account().cancelOrder(parameters)
+        return restClient.account().cancelOrder(parameters)
     }
-
 
     fun trimSymbol(symbol: String): String {
         return if (symbol.endsWith(".P", ignoreCase = true))
@@ -157,6 +167,9 @@ class OrderService(
             symbol
     }
 
-
-
+    @PreDestroy
+    fun destroy() {
+        restClient.userData().closeListenKey()
+        wsClient.closeAllConnections()
+    }
 }
