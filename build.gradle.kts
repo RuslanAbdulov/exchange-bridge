@@ -7,6 +7,7 @@ plugins {
 	kotlin("jvm") version "1.9.23"
 	kotlin("plugin.spring") version "1.9.23"
 	kotlin("plugin.jpa") version "1.9.23"
+	kotlin("plugin.allopen") version "1.9.23"
 }
 
 group = "com.hgstrat"
@@ -26,20 +27,21 @@ dependencies {
 
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
+	implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("io.projectreactor.kotlin:reactor-kotlin-extensions")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
 
+	implementation("io.r2dbc:r2dbc-h2")
 	implementation("org.hibernate.orm:hibernate-community-dialects:6.4.4.Final")
-	implementation("org.xerial:sqlite-jdbc:3.45.3.0")
-//	implementation("net.openhft:chronicle-map:3.25ea6")
+	implementation("com.h2database:h2:2.2.224")
+
 	implementation("io.github.binance:binance-futures-connector-java:3.0.3")
 	implementation("org.seleniumhq.selenium:selenium-java:4.20.0")
 	implementation("org.seleniumhq.selenium:selenium-support:4.20.0")
 	implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
-
-	//implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")

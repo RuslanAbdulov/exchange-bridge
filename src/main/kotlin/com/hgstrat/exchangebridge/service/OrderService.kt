@@ -4,30 +4,44 @@ import com.binance.connector.futures.client.impl.UMFuturesClientImpl
 import com.binance.connector.futures.client.impl.UMWebsocketClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import jakarta.annotation.PostConstruct
+import com.hgstrat.exchangebridge.model.Order
+import com.hgstrat.exchangebridge.model.OrderResponse
+import com.hgstrat.exchangebridge.model.Side
+import com.hgstrat.exchangebridge.repository.OrderRepository
+import com.hgstrat.exchangebridge.repository.entity.OrderEntity
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.math.BigDecimal
 
 @Service
 class OrderService(
-    var restClient: UMFuturesClientImpl,
-    var wsClient: UMWebsocketClientImpl,
-    val objectMapper: ObjectMapper
+    val restClient: UMFuturesClientImpl,
+    val wsClient: UMWebsocketClientImpl,
+    val objectMapper: ObjectMapper,
+    val orderRepository: OrderRepository,
 ) {
 
     companion object {
         val log = LoggerFactory.getLogger(OrderService::class.java.name)
     }
 
-    @PostConstruct
+    //@PostConstruct
     fun listen() {
         restClient.account()
         val listenKey = restClient.userData().createListenKey()
-        restClient.userData().extendListenKey()
-        wsClient.listenUserStream(listenKey, ({event -> log.info(event) }));
+        //restClient.userData().extendListenKey()
+        //TODO extract listenKey from {"listenKey":"YgUYs0sokBF1bB6GSJSaGzOixZ5B2rVf44xhQaJFYLL02qzKsOwWTDSSgz7ZE7p5"}
+        // wsClient.combineStreams(listOf("ONEUSDT"))
+        wsClient.listenUserStream(listenKey, {} , {event -> log.info(event) }, {}, {});
+    }
+
+
+    fun refresh() {
+//        orderRepository.todo() //find all symbols with open orders
+//        restClient.account().allOrders();
     }
 
     //TODO get api key for the account
@@ -160,11 +174,52 @@ class OrderService(
         return restClient.account().cancelOrder(parameters)
     }
 
+    fun saveOrder(order: Order): Mono<OrderResponse> {
+        val orderEntity = mapToEntity(order)
+        return orderRepository.save(orderEntity)
+            .map(this::mapToResponse)
+    }
+
+    fun findBySymbol(symbol: String): Flux<OrderResponse> {
+        return orderRepository.findBySymbol(symbol)
+            .map(this::mapToResponse)
+    }
+
     fun trimSymbol(symbol: String): String {
         return if (symbol.endsWith(".P", ignoreCase = true))
             symbol.dropLast(2)
         else
             symbol
+    }
+
+    fun mapToEntity(order: Order): OrderEntity {
+        return OrderEntity (
+            symbol = order.symbol,
+            side = order.side,
+            type = order.type,
+            price = order.price,
+            quantity = order.quantity,
+            originOrderId = order.originOrderId,
+            timeFrame = order.timeFrame,
+            stopLoss = order.stopLoss,
+            takeProfit = order.takeProfit,
+            state = order.state)
+    }
+
+    fun mapToResponse(order: OrderEntity): OrderResponse {
+        return OrderResponse(
+            id = order.id!!,
+            symbol = order.symbol,
+            state = order.state,
+            side = order.side,
+            type = order.type,
+            price = order.price,
+            quantity = order.quantity,
+            originOrderId = order.originOrderId,
+            timeFrame = order.timeFrame,
+            stopLoss = order.stopLoss,
+            takeProfit = order.takeProfit,
+            lastUpdate = order.lastUpdate)
     }
 
     @PreDestroy

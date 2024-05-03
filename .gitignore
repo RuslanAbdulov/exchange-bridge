@@ -42,3 +42,5 @@ out/
 *.env
 /logs
 .DS_Store
+./*.mv.db
+./*.trace.db

@@ -1,4 +1,4 @@
-package com.hgstrat.exchangebridge.service
+package com.hgstrat.exchangebridge.model
 
 enum class Side(val positionSide: String) {
     SELL("LONG") {

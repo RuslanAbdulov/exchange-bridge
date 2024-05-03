@@ -1,4 +1,4 @@
-package com.hgstrat.exchangebridge.service
+package com.hgstrat.exchangebridge.model
 
 import java.math.BigDecimal
 import java.time.Instant
@@ -13,5 +13,9 @@ data class Order(
     val goodTillDate: Instant?, //1713718068000
     val timeFrame: String?,
     val stopLoss: BigDecimal?,
-    val takeProfit: BigDecimal?
+    val takeProfit: BigDecimal?,
+
+    val state: OrderState?,
+    val lastUpdate: Instant?
+
 )

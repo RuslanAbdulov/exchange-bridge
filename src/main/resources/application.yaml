@@ -1,3 +1,6 @@
+server:
+  port: 9000
+
 spring:
   application:
     name: exchange-bridge
@@ -8,30 +11,46 @@ spring:
   data:
     jpa:
       repositories:
-        enabled: false
-  jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
-    show-sql: true
-    hibernate:
-      ddl-auto: update
-  datasource:
-    driverClassName: org.sqlite.JDBC
-    url: jdbc:sqlite:exchange-bridge.db
-#    url: jdbc:sqlite:memory:myDb?cache=shared
-    username: sa
-    password: sa
-#  autoconfigure:
-#    exclude:
-#      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+        enabled: true
     jdbc:
       repositories:
         enabled: false
     r2dbc:
       repositories:
-        enabled: false
+        enabled: true
+  jpa:
+#    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    generate-ddl: true
+  datasource:
+    url: r2dbc:h2:file:///./orderdb
+    username: sa
+    password: password
+    driverClassName: org.h2.Driver
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
-server:
-  port: 9000
+  r2dbc:
+    url: r2dbc:h2:file:///./orderdb
+#  url: jdbc:h2:file:./tmp/test-database
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings.trace: true
+      settings.web-allow-others: false
+
+management:
+  endpoints:
+    web:
+      exposure.include: info,health,h2console
 
 hgstrat:
   binance:

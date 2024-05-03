@@ -1,14 +1,15 @@
 package com.hgstrat.exchangebridge.controller
 
-import com.hgstrat.exchangebridge.out.selenium.BinanceUIService
-import com.hgstrat.exchangebridge.service.Order
+import com.hgstrat.exchangebridge.model.Order
+import com.hgstrat.exchangebridge.model.OrderResponse
 import com.hgstrat.exchangebridge.service.OrderService
 import org.springframework.web.bind.annotation.*
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 
 @RestController("/")
 class OrderController (
     val orderService: OrderService
-//    val uiService : BinanceUIService
 ) {
 
     @GetMapping("/")
@@ -20,7 +21,7 @@ class OrderController (
         orderService.process(order, account)
     }
 
-    @PostMapping("/new-order/")
+    @PostMapping("/new-order/porxy/")
     fun newOrderProxy(@RequestBody parameters: LinkedHashMap<String, Any?>): String {
         return orderService.newOrderProxy(parameters)
     }
@@ -30,5 +31,14 @@ class OrderController (
 //        uiService.placeOrder(order.price)
     }
 
+    @PostMapping("/order/")
+    fun saveOrder(@RequestBody order: Order): Mono<OrderResponse> {
+        return orderService.saveOrder(order)
+    }
+
+    @GetMapping("/order/{symbol}")
+    fun getSymbolOrders(@PathVariable symbol: String): Flux<OrderResponse> {
+        return orderService.findBySymbol(symbol)
+    }
 
 }
