@@ -1,0 +1,13 @@
+hgstrat:
+  binance:
+    api-key: test
+    secret-key: test
+
+logging:
+  level:
+    web: DEBUG
+    webflux: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: TRACE
+    org.servlet.mvc.method.annotation.ServletInvocableHandlerMethod: TRACE
+    org.springframework.boot.actuate.trace.http.HttpTraceRepository: DEBUG
+    org.springframework.http.codec.json: DEBUG

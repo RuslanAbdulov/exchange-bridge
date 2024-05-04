@@ -38,7 +38,7 @@ spring:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
   r2dbc:
-    url: r2dbc:h2:file:///./orderdb
+    url: r2dbc:h2:file:///./orderdb;AUTO_SERVER=TRUE
 #  url: jdbc:h2:file:./tmp/test-database
   h2:
     console:

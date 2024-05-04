@@ -6,7 +6,9 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hgstrat.exchangebridge.model.Order
 import com.hgstrat.exchangebridge.model.OrderResponse
+import com.hgstrat.exchangebridge.model.OrderState
 import com.hgstrat.exchangebridge.model.Side
+import com.hgstrat.exchangebridge.out.binance.futures.BOrderWrapper
 import com.hgstrat.exchangebridge.repository.OrderRepository
 import com.hgstrat.exchangebridge.repository.entity.OrderEntity
 import jakarta.annotation.PreDestroy
@@ -44,6 +46,76 @@ class OrderService(
 //        restClient.account().allOrders();
     }
 
+    fun getAllFromExchangeAndUpdate(): Flux<OrderEntity> {
+        return orderRepository.findAllSymbols()
+//            //filter by last update?
+            .flatMapIterable { symbol ->
+                val exchangeResponse = getFromExchange(symbol)
+                readAndWrapList(exchangeResponse)
+            }
+            .mapNotNull { bOrder ->
+                update(bOrder)
+                    .flatMap { orderEntity ->
+                        placeTakeProfit(mapToDomain(orderEntity))
+                        placeStopLoss(mapToDomain(orderEntity))
+                        orderEntity.state = OrderState.TP_SL_PLACED
+                        orderRepository.save(orderEntity)
+                    }
+            }
+            .flatMap {it}
+            .log()
+    }
+
+//    orderRepository.findAllSymbols()
+//                .mapNotNull { symbol ->
+//                val exchangeResponse = getFromExchange(symbol)
+//                val bOrder = readAndWrap(exchangeResponse)
+//                update(bOrder)
+//                    .flatMap { orderEntity ->
+//                        placeTakeProfit(mapToDomain(orderEntity))
+//                        placeStopLoss(mapToDomain(orderEntity))
+//                        orderEntity.state = OrderState.TP_SL_PLACED
+//                        orderRepository.save(orderEntity)
+//                    }
+//            }
+//            .flatMap {it}
+//            .log()
+
+    fun update(bOrder: BOrderWrapper): Mono<OrderEntity> {
+        if (bOrder.getState() == null || bOrder.getState()!! <= OrderState.ORDER_FILLED) {
+            return Mono.empty()
+        }
+        if (bOrder.getOriginOrderId() == null) {
+            return Mono.empty()
+        }
+        return orderRepository.findByOriginOrderId(bOrder.getOriginOrderId()!!)
+            .filter { order -> order.state!! <= bOrder.getState() as OrderState }
+            .flatMap { order ->
+                order.state = bOrder.getState()
+                orderRepository.save(order)
+            }
+    }
+
+    fun readAndWrapList(response: String): List<BOrderWrapper> {
+        val rawOrders: List<Map<String, Any?>> = objectMapper.readValue(response)
+        return rawOrders.stream()
+            .map {BOrderWrapper(it)}
+            .toList()
+    }
+
+    fun getFromExchange(symbol: String): String {
+        val parameters = LinkedHashMap<String, Any?>()
+        parameters["symbol"] = trimSymbol(symbol)
+        val allOrderResponse: String = restClient.account().allOrders(parameters)
+        return allOrderResponse
+    }
+
+    fun getPosition(symbol: String): String {
+        val parameters = LinkedHashMap<String, Any?>()
+        return restClient.account().positionInformation(parameters)
+    }
+
+
     //TODO get api key for the account
     fun process(order: Order, account: String) {
         val parameters = LinkedHashMap<String, Any?>()
@@ -55,7 +127,6 @@ class OrderService(
 
     private final inline fun <reified T> ObjectMapper.readValue(s: String): T =
         this.readValue(s, object : TypeReference<T>() {})
-    //then val msg: Map<String,String> = objectMapper.readValue(result)
 //    val typeRef: TypeReference<Map<String, String>> = object : TypeReference<Map<String, String>>() {}
 //        val msg0:  Map<String,String> = objectMapper.readValue(result, typeRef)
 
@@ -99,7 +170,7 @@ class OrderService(
         }
     }
 
-    //TODO goodTillDate or auto close by countdownTime
+    //TODO goodTillDate or auto close by countdownTime, calc by timeframe and signal time
     // https://github.com/binance/binance-futures-connector-java/blob/main/src/test/java/examples/um_futures/account/AutoCancelOpen.java
     fun placeOrder(order: Order): String {
         val parameters = LinkedHashMap<String, Any?>()
@@ -203,7 +274,24 @@ class OrderService(
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
-            state = order.state)
+            state = order.state,
+            exchangeOrderId = null)
+    }
+
+    fun mapToDomain(order: OrderEntity): Order {
+        return Order (
+            symbol = order.symbol,
+            side = order.side,
+            type = order.type,
+            price = order.price,
+            quantity = order.quantity,
+            originOrderId = order.originOrderId,
+            timeFrame = order.timeFrame,
+            stopLoss = order.stopLoss,
+            takeProfit = order.takeProfit,
+            state = order.state,
+            goodTillDate = null,
+            lastUpdate = order.lastUpdate)
     }
 
     fun mapToResponse(order: OrderEntity): OrderResponse {
@@ -216,6 +304,7 @@ class OrderService(
             price = order.price,
             quantity = order.quantity,
             originOrderId = order.originOrderId,
+            exchangeOrderId = order.exchangeOrderId,
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,

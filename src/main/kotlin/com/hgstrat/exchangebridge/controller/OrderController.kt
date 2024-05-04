@@ -41,4 +41,10 @@ class OrderController (
         return orderService.findBySymbol(symbol)
     }
 
+    @GetMapping("/order/binance/")
+    fun getExchangeOrders(): Flux<String> {
+        return orderService.getAllFromExchangeAndUpdate()
+            .map { it.toString() }
+    }
+
 }

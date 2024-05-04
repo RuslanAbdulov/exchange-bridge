@@ -28,10 +28,13 @@ class OrderEntity (
     val price: BigDecimal,
 
     @Column
-    val quantity: BigDecimal, //50
+    val quantity: BigDecimal,
 
     @Column
-    val originOrderId: String?, //test1
+    val originOrderId: String?,
+
+    @Column
+    var exchangeOrderId: String?,
 
     @Column
     val timeFrame: String?,
@@ -43,7 +46,7 @@ class OrderEntity (
     val takeProfit: BigDecimal?,
 
     @Column
-    val state: OrderState?,
+    var state: OrderState?,
 
     @Column
     @Temporal(TemporalType.TIMESTAMP)

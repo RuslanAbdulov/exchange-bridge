@@ -11,6 +11,7 @@ data class OrderResponse(
     var price: BigDecimal?, //0.1
     var quantity: BigDecimal?, //50
     var originOrderId: String?, //test1
+    var exchangeOrderId: String?,
     //var goodTillDate: Instant?, //1713718068000
     var timeFrame: String?,
     var stopLoss: BigDecimal?,
