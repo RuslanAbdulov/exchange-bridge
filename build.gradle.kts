@@ -39,9 +39,6 @@ dependencies {
 	implementation("com.h2database:h2:2.2.224")
 
 	implementation("io.github.binance:binance-futures-connector-java:3.0.3")
-	implementation("org.seleniumhq.selenium:selenium-java:4.20.0")
-	implementation("org.seleniumhq.selenium:selenium-support:4.20.0")
-	implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
