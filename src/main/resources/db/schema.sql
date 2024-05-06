@@ -13,3 +13,5 @@ create table if not exists orders (
     state varchar(36),
     last_update timestamp default now()
 );
+
+alter table orders add constraint if not exists orders_uq unique (origin_order_id);

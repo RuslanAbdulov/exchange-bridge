@@ -10,9 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled
 @Configuration
 class ScheduleConfiguration(val orderService: OrderService) {
 
-    @Scheduled(fixedDelay = 60_000)
+    @Scheduled(fixedDelay = 60_000, initialDelay = 1_000)
     fun refreshOrders() {
-        return orderService.refresh()
+        return orderService.refreshDBOrdersFromExchange()
     }
 
 }

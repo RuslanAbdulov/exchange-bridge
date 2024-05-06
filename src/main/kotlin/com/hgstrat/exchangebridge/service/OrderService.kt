@@ -39,9 +39,8 @@ class OrderService(
     }
 
 
-    fun refresh() {
-//        orderRepository.todo() //find all symbols with open orders
-//        restClient.account().allOrders();
+    fun refreshDBOrdersFromExchange() {
+        getAllFromExchangeAndUpdate().subscribe()
     }
 
     fun getAllFromExchangeAndUpdate(): Flux<OrderEntity> {
