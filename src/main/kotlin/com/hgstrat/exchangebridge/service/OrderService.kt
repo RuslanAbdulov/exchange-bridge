@@ -4,10 +4,7 @@ import com.binance.connector.futures.client.impl.UMFuturesClientImpl
 import com.binance.connector.futures.client.impl.UMWebsocketClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.hgstrat.exchangebridge.model.Order
-import com.hgstrat.exchangebridge.model.OrderResponse
-import com.hgstrat.exchangebridge.model.OrderState
-import com.hgstrat.exchangebridge.model.Side
+import com.hgstrat.exchangebridge.model.*
 import com.hgstrat.exchangebridge.out.binance.futures.BOrderWrapper
 import com.hgstrat.exchangebridge.repository.OrderRepository
 import com.hgstrat.exchangebridge.repository.entity.OrderEntity
@@ -17,13 +14,15 @@ import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 @Service
 class OrderService(
     val restClient: UMFuturesClientImpl,
     val wsClient: UMWebsocketClientImpl,
     val objectMapper: ObjectMapper,
-    val orderRepository: OrderRepository,
+    val orderRepository: OrderRepository
 ) {
 
     companion object {
@@ -32,12 +31,11 @@ class OrderService(
 
     //@PostConstruct
     fun listen() {
-        restClient.account()
-        val listenKey = restClient.userData().createListenKey()
+        //val listenKey = restClient.userData().createListenKey()
         //restClient.userData().extendListenKey()
         //TODO extract listenKey from {"listenKey":"YgUYs0sokBF1bB6GSJSaGzOixZ5B2rVf44xhQaJFYLL02qzKsOwWTDSSgz7ZE7p5"}
         // wsClient.combineStreams(listOf("ONEUSDT"))
-        wsClient.listenUserStream(listenKey, {} , {event -> log.info(event) }, {}, {});
+        //wsClient.listenUserStream(listenKey, {} , {event -> log.info(event) }, {}, {});
     }
 
 
@@ -54,7 +52,8 @@ class OrderService(
                 readAndWrapList(exchangeResponse)
             }
             .mapNotNull { bOrder ->
-                update(bOrder)
+                updateState(bOrder)
+                    .filter { it.state == OrderState.ORDER_FILLED }
                     .flatMap { orderEntity ->
                         placeTakeProfit(mapToDomain(orderEntity))
                         placeStopLoss(mapToDomain(orderEntity))
@@ -62,7 +61,7 @@ class OrderService(
                         orderRepository.save(orderEntity)
                     }
             }
-            .flatMap {it}
+            .flatMap { it }
             .log()
     }
 
@@ -81,15 +80,15 @@ class OrderService(
 //            .flatMap {it}
 //            .log()
 
-    fun update(bOrder: BOrderWrapper): Mono<OrderEntity> {
-        if (bOrder.getState() == null || bOrder.getState()!! <= OrderState.ORDER_FILLED) {
+    fun updateState(bOrder: BOrderWrapper): Mono<OrderEntity> {
+        if (bOrder.getState() == null || bOrder.getState()!! < OrderState.ORDER_FILLED) {
             return Mono.empty()
         }
         if (bOrder.getOriginOrderId() == null) {
             return Mono.empty()
         }
         return orderRepository.findByOriginOrderId(bOrder.getOriginOrderId()!!)
-            .filter { order -> order.state!! <= bOrder.getState() as OrderState }
+            .filter { order -> order.state!! < bOrder.getState() as OrderState }
             .flatMap { order ->
                 order.state = bOrder.getState()
                 orderRepository.save(order)
@@ -99,7 +98,7 @@ class OrderService(
     fun readAndWrapList(response: String): List<BOrderWrapper> {
         val rawOrders: List<Map<String, Any?>> = objectMapper.readValue(response)
         return rawOrders.stream()
-            .map {BOrderWrapper(it)}
+            .map { BOrderWrapper(it) }
             .toList()
     }
 
@@ -117,12 +116,13 @@ class OrderService(
 
 
     //TODO get api key for the account
-    fun process(order: Order, account: String) {
-        val parameters = LinkedHashMap<String, Any?>()
-        parameters["symbol"] = trimSymbol(order.symbol)
-//        val tickerSymbol = client.market().tickerSymbol(parameters)
+    fun routeAndProcess(order: Order, account: String) {
+        when (OrderType.getByName(order.type)) {
+            OrderType.LIMIT -> placeLimitOrder(order)
+            OrderType.CANCEL -> cancelOrder(symbol = order.symbol, originOrderId = order.originOrderId)
+            else -> throw IllegalArgumentException("Unsupported order type ${order.type}")
+        }
 
-        stopLossStrategy(order)
     }
 
     private final inline fun <reified T> ObjectMapper.readValue(s: String): T =
@@ -136,18 +136,20 @@ class OrderService(
         return result
     }
 
-    //Also, goodTillDate can be calculated based on order.timeFrame
-    private fun setGtd(parameters: LinkedHashMap<String, Any?>, order: Order) {
-        if (order.goodTillDate != null) {
-            parameters["timeInForce"] = "GTD"
-            parameters["goodTillDate"] = order.goodTillDate.epochSecond
-        } else {
-            parameters["timeInForce"] = "GTC"
+    private fun goodTillDate(order: Order): Instant {
+        val minGoodTillDate = Instant.now().plusSeconds(601)
+        if (order.goodTillDate != null && order.goodTillDate >= minGoodTillDate) {
+            return order.goodTillDate
         }
+        if (order.timeFrame == null) {
+            return minGoodTillDate
+        }
+        val fromTimeFrame = Instant.now().plus(order.timeFrame.toLong(), ChronoUnit.MINUTES)
+        return if (fromTimeFrame > minGoodTillDate) fromTimeFrame else minGoodTillDate
     }
 
     fun stopLossStrategy(order: Order) {
-        val poResponse = placeOrder(order)
+        val poResponse = placeLimitOrder(order)
         val placedOrder: Map<String, String> = objectMapper.readValue(poResponse)
 
         val takeProfitOrder: Map<String, String>
@@ -156,7 +158,7 @@ class OrderService(
             log.info(tpResponse)
             takeProfitOrder = objectMapper.readValue(tpResponse)
         } catch (e: Exception) {
-            cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
+            cancelOrder(symbol = order.symbol, orderId = placedOrder["orderId"]!!.toLong())
             return
         }
 
@@ -170,9 +172,7 @@ class OrderService(
         }
     }
 
-    //TODO goodTillDate or auto close by countdownTime, calc by timeframe and signal time
-    // https://github.com/binance/binance-futures-connector-java/blob/main/src/test/java/examples/um_futures/account/AutoCancelOpen.java
-    fun placeOrder(order: Order): String {
+    fun placeLimitOrder(order: Order): String {
         val parameters = LinkedHashMap<String, Any?>()
 
         parameters["side"] = Side.getByName(order.side).toString()
@@ -180,12 +180,12 @@ class OrderService(
         //parameters["positionSide"] = Side.getByName(order.side).positionSide
         parameters["symbol"] = trimSymbol(order.symbol)
         parameters["type"] = "LIMIT"
-        parameters["timeInForce"] = "GTC"
+        parameters["goodTillDate"] = goodTillDate(order).toEpochMilli()
+        parameters["timeInForce"] = "GTD" //"GTC"
         parameters["quantity"] = order.quantity
         parameters["price"] = order.price
         parameters["newClientOrderId"] = order.originOrderId
         //"securityType": "USDT_FUTURES",
-        //parameters["reduceOnly"] = false
 
         return restClient.account().newOrder(parameters)
     }
@@ -237,10 +237,11 @@ class OrderService(
 //        return client.account().newOrder(parameters)
 //    }
 
-    fun cancelOrder(symbol: String, orderId: Long): String {
+    fun cancelOrder(symbol: String, orderId: Long? = null, originOrderId: String? = null): String {
         val parameters = LinkedHashMap<String, Any?>()
         parameters["symbol"] = trimSymbol(symbol)
         parameters["orderId"] = orderId
+        parameters["origClientOrderId"] = originOrderId
 
         return restClient.account().cancelOrder(parameters)
     }
@@ -264,7 +265,7 @@ class OrderService(
     }
 
     fun mapToEntity(order: Order): OrderEntity {
-        return OrderEntity (
+        return OrderEntity(
             symbol = order.symbol,
             side = order.side,
             type = order.type,
@@ -275,11 +276,12 @@ class OrderService(
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
             state = order.state,
-            exchangeOrderId = null)
+            exchangeOrderId = null
+        )
     }
 
     fun mapToDomain(order: OrderEntity): Order {
-        return Order (
+        return Order(
             symbol = order.symbol,
             side = order.side,
             type = order.type,
@@ -291,7 +293,8 @@ class OrderService(
             takeProfit = order.takeProfit,
             state = order.state,
             goodTillDate = null,
-            lastUpdate = order.lastUpdate)
+            lastUpdate = order.lastUpdate
+        )
     }
 
     fun mapToResponse(order: OrderEntity): OrderResponse {
@@ -308,7 +311,8 @@ class OrderService(
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
-            lastUpdate = order.lastUpdate)
+            lastUpdate = order.lastUpdate
+        )
     }
 
     @PreDestroy

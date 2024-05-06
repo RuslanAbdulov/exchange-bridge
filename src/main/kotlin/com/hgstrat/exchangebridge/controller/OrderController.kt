@@ -18,7 +18,7 @@ class OrderController (
     @PostMapping("/webhook/tv/{account}/")
     fun tvWebhook(@RequestBody order: Order,
                   @PathVariable("account") account: String) {
-        orderService.process(order, account)
+        orderService.routeAndProcess(order, account)
     }
 
     @PostMapping("/new-order/porxy/")
