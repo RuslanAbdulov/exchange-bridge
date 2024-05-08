@@ -1,0 +1,43 @@
+POST localhost:9000/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.04,
+  "quantity": 125,
+  "originOrderId": "test1417",
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041
+}
+
+###
+
+
+POST localhost:9000/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 0.01,
+  "quantity": 500,
+  "originOrderId": "test1",
+  "timeFrame": "17",
+  "takeProfit": 0.02,
+  "stopLoss": 0.019
+}
+
+###
+
+POST https://1247-5-134-58-242.ngrok-free.app/webhook/tv/TVB-111/
+Content-Type: application/json;charset=utf-8
+
+###
+
+GET https://1247-5-134-58-242.ngrok-free.app/
+###
+

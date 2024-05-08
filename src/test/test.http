@@ -1,55 +1,9 @@
-POST localhost:9000/webhook/tv/TVB-111/
-Content-Type: application/json
-
-{
-  "symbol": "ONEUSDT",
-  "side": "SELL",
-  "type": "LIMIT",
-  "price": 0.04,
-  "quantity": 125,
-  "originOrderId": "test1412",
-  "timeFrame": "17",
-  "takeProfit": 0.039,
-  "stopLoss": 0.041
-}
-
-###
-
-
-POST localhost:9000/webhook/tv/TVB-111/
-Content-Type: application/json
-
-{
-  "symbol": "ONEUSDT",
-  "side": "BUY",
-  "type": "LIMIT",
-  "price": 0.01,
-  "quantity": 500,
-  "originOrderId": "test1",
-  "timeFrame": "17",
-  "takeProfit": 0.02,
-  "stopLoss": 0.019
-}
-
-###
-
-
-
-POST https://1247-5-134-58-242.ngrok-free.app/webhook/tv/TVB-111/
-Content-Type: application/json;charset=utf-8
-
-###
-
-
-GET https://1247-5-134-58-242.ngrok-free.app/
-###
-
-GET http://192.168.0.103:9000/
+GET http://192.168.0.103:9000/test/
 ###
 
 
 #1. order
-POST localhost:9000/new-order/porxy/
+POST localhost:9000/test/new-order/porxy/
 Content-Type: application/json
 
 {
@@ -66,7 +20,7 @@ Content-Type: application/json
 ###
 
 #2. Take profit
-POST localhost:9000/new-order/porxy/
+POST localhost:9000/test/new-order/porxy/
 Content-Type: application/json
 
 {
@@ -90,7 +44,7 @@ Content-Type: application/json
 
 
 #3. Stop loss
-POST localhost:9000/new-order/porxy/
+POST localhost:9000/test/new-order/porxy/
 Content-Type: application/json
 
 {
@@ -112,7 +66,7 @@ Content-Type: application/json
 #{"orderId":6007781138,"symbol":"ONEUSDT","status":"NEW","clientOrderId":"test1_sl","price":"0.04000","avgPrice":"0.00","origQty":"125","executedQty":"0","cumQty":"0","cumQuote":"0.00000","timeInForce":"GTE_GTC","type":"STOP","reduceOnly":true,"closePosition":false,"side":"BUY","positionSide":"BOTH","stopPrice":"0.04100","workingType":"MARK_PRICE","priceProtect":true,"origType":"STOP","priceMatch":"NONE","selfTradePreventionMode":"NONE","goodTillDate":0,"updateTime":1714337927810}
 
 
-POST localhost:9000/new-order/porxy/
+POST localhost:9000/test/new-order/porxy/
 Content-Type: application/json
 
 {
@@ -133,7 +87,7 @@ Content-Type: application/json
 ###
 
 
-POST localhost:9000/new-order/ui/
+POST localhost:9000/test/new-order/ui/
 Content-Type: application/json
 
 {
@@ -150,7 +104,7 @@ Content-Type: application/json
 ###
 
 
-POST localhost:9000/order/
+POST localhost:9000/test/order/
 Content-Type: application/json
 
 {
@@ -166,7 +120,7 @@ Content-Type: application/json
 }
 ###
 
-GET localhost:9000/order/ONEUSDT
+GET localhost:9000/test/order/ONEUSDT
 Content-Type: application/json
 ###
 

@@ -11,7 +11,8 @@ create table if not exists orders (
     stop_loss numeric(12, 6),
     take_profit numeric(12, 6),
     state varchar(36),
-    last_update timestamp default now()
+    last_update timestamp default now(),
+    ex_bridge_account varchar(256)
 );
 
 alter table orders add constraint if not exists orders_uq unique (origin_order_id);

@@ -34,19 +34,22 @@ class OrderEntity (
     val originOrderId: String?,
 
     @Column
-    var exchangeOrderId: String?,
+    var exchangeOrderId: String? = null,
 
     @Column
-    val timeFrame: String?,
+    val timeFrame: String,
 
     @Column
-    val stopLoss: BigDecimal?,
+    val stopLoss: BigDecimal? = null,
 
     @Column
-    val takeProfit: BigDecimal?,
+    val takeProfit: BigDecimal? = null,
 
     @Column
-    var state: OrderState?,
+    var state: OrderState? = OrderState.SIGNAL_RECEIVED,
+
+    @Column("ex_bridge_account")
+    val account: String,
 
     @Column
     @Temporal(TemporalType.TIMESTAMP)

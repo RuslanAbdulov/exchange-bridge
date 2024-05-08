@@ -61,29 +61,15 @@ class OrderService(
                     }
             }
             .flatMap { it }
-            .log()
     }
 
-//    orderRepository.findAllSymbols()
-//                .mapNotNull { symbol ->
-//                val exchangeResponse = getFromExchange(symbol)
-//                val bOrder = readAndWrap(exchangeResponse)
-//                update(bOrder)
-//                    .flatMap { orderEntity ->
-//                        placeTakeProfit(mapToDomain(orderEntity))
-//                        placeStopLoss(mapToDomain(orderEntity))
-//                        orderEntity.state = OrderState.TP_SL_PLACED
-//                        orderRepository.save(orderEntity)
-//                    }
-//            }
-//            .flatMap {it}
-//            .log()
-
     fun updateState(bOrder: BOrderWrapper): Mono<OrderEntity> {
-        if (bOrder.getState() == null || bOrder.getState()!! < OrderState.ORDER_FILLED) {
+        if (bOrder.getState() == null) {
+            log.warn("State not detected for Binance order ${bOrder.getOriginOrderId()}")
             return Mono.empty()
         }
         if (bOrder.getOriginOrderId() == null) {
+            log.warn("No originOrderId to map Binance order")
             return Mono.empty()
         }
         return orderRepository.findByOriginOrderId(bOrder.getOriginOrderId()!!)
@@ -115,8 +101,9 @@ class OrderService(
 
 
     //TODO get api key for the account
-    fun routeAndProcess(order: Order, account: String) {
-        when (OrderType.getByName(order.type)) {
+    fun routeAndProcess(order: Order, account: String): Mono<String> {
+        order.account = account
+        return when (OrderType.getByName(order.type)) {
             OrderType.LIMIT -> placeLimitOrder(order)
             OrderType.CANCEL -> cancelOrder(symbol = order.symbol, originOrderId = order.originOrderId)
             else -> throw IllegalArgumentException("Unsupported order type ${order.type}")
@@ -147,31 +134,31 @@ class OrderService(
         return if (fromTimeFrame > minGoodTillDate) fromTimeFrame else minGoodTillDate
     }
 
-    fun stopLossStrategy(order: Order) {
-        val poResponse = placeLimitOrder(order)
-        val placedOrder: Map<String, String> = objectMapper.readValue(poResponse)
+//    fun stopLossStrategy(order: Order) {
+//        val poResponse = placeLimitOrder(order)
+//        val placedOrder: Map<String, String> = objectMapper.readValue(poResponse!!)
+//
+//        val takeProfitOrder: Map<String, String>
+//        try {
+//            val tpResponse = placeTakeProfit(order)
+//            log.info(tpResponse)
+//            takeProfitOrder = objectMapper.readValue(tpResponse)
+//        } catch (e: Exception) {
+//            cancelOrder(symbol = order.symbol, orderId = placedOrder["orderId"]!!.toLong())
+//            return
+//        }
+//
+//        try {
+//            val slResponse = placeStopLoss(order)
+//            log.info(slResponse)
+//        } catch (e: Exception) {
+//            cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
+//            cancelOrder(order.symbol, takeProfitOrder["orderId"]!!.toLong())
+//            return
+//        }
+//    }
 
-        val takeProfitOrder: Map<String, String>
-        try {
-            val tpResponse = placeTakeProfit(order)
-            log.info(tpResponse)
-            takeProfitOrder = objectMapper.readValue(tpResponse)
-        } catch (e: Exception) {
-            cancelOrder(symbol = order.symbol, orderId = placedOrder["orderId"]!!.toLong())
-            return
-        }
-
-        try {
-            val slResponse = placeStopLoss(order)
-            log.info(slResponse)
-        } catch (e: Exception) {
-            cancelOrder(order.symbol, placedOrder["orderId"]!!.toLong())
-            cancelOrder(order.symbol, takeProfitOrder["orderId"]!!.toLong())
-            return
-        }
-    }
-
-    fun placeLimitOrder(order: Order): String {
+    fun placeLimitOrder(order: Order): Mono<String> {
         val parameters = LinkedHashMap<String, Any?>()
 
         parameters["side"] = Side.getByName(order.side).toString()
@@ -186,7 +173,9 @@ class OrderService(
         parameters["newClientOrderId"] = order.originOrderId
         //"securityType": "USDT_FUTURES",
 
-        return restClient.account().newOrder(parameters)
+        return saveOrder(order)
+//            .doOnSuccess {restClient.account().newOrder(parameters) }
+            .then(Mono.just(restClient.account().newOrder(parameters)))
     }
 
     fun placeTakeProfit(order: Order): String {
@@ -236,13 +225,13 @@ class OrderService(
 //        return client.account().newOrder(parameters)
 //    }
 
-    fun cancelOrder(symbol: String, orderId: Long? = null, originOrderId: String? = null): String {
+    fun cancelOrder(symbol: String, orderId: Long? = null, originOrderId: String? = null): Mono<String> {
         val parameters = LinkedHashMap<String, Any?>()
         parameters["symbol"] = trimSymbol(symbol)
         parameters["orderId"] = orderId
         parameters["origClientOrderId"] = originOrderId
 
-        return restClient.account().cancelOrder(parameters)
+        return Mono.just(restClient.account().cancelOrder(parameters))
     }
 
     fun saveOrder(order: Order): Mono<OrderResponse> {
@@ -275,7 +264,7 @@ class OrderService(
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
             state = order.state,
-            exchangeOrderId = null
+            account = order.account!!
         )
     }
 
@@ -291,8 +280,8 @@ class OrderService(
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
             state = order.state,
-            goodTillDate = null,
-            lastUpdate = order.lastUpdate
+            lastUpdate = order.lastUpdate,
+            account = order.account
         )
     }
 
@@ -310,7 +299,8 @@ class OrderService(
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
-            lastUpdate = order.lastUpdate
+            lastUpdate = order.lastUpdate,
+            account = order.account
         )
     }
 

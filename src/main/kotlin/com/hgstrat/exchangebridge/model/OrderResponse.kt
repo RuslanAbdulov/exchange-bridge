@@ -18,6 +18,6 @@ data class OrderResponse(
     var takeProfit: BigDecimal?,
 
     var state: OrderState?,
-    var lastUpdate: Instant?
-
+    var lastUpdate: Instant?,
+    var account: String
 )
