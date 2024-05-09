@@ -29,7 +29,8 @@ spring:
         format_sql: true
     generate-ddl: true
   datasource:
-    url: r2dbc:h2:file:///./orderdb
+    url: r2dbc:h2:file:///./orderdb;AUTO_SERVER=TRUE;AUTO_SERVER_PORT=9020
+#    url: jdbc:h2:tcp://localhost/./data/orderdb
     username: sa
     password: password
     driverClassName: org.h2.Driver
@@ -38,7 +39,7 @@ spring:
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 
   r2dbc:
-    url: r2dbc:h2:file:///./orderdb;AUTO_SERVER=TRUE
+    url: r2dbc:h2:file:///./orderdb;AUTO_SERVER=TRUE;AUTO_SERVER_PORT=9021
 #  url: jdbc:h2:file:./tmp/test-database
   h2:
     console:
@@ -58,6 +59,7 @@ hgstrat:
     secret-key: ${binance-secret-key}
 
 logging:
+  config: classpath:logback-spring.xml
   level:
     web: DEBUG
     webflux: DEBUG
