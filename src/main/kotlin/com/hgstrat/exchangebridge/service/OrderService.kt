@@ -306,7 +306,7 @@ class OrderService(
 
     @PreDestroy
     fun destroy() {
-        restClient.userData().closeListenKey()
+        //restClient.userData().closeListenKey()
         wsClient.closeAllConnections()
     }
 }

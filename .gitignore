@@ -40,6 +40,7 @@ out/
 .kotlin
 
 *.env
+*.env.json
 /logs
 .DS_Store
 ./*.mv.db

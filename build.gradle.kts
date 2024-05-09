@@ -68,3 +68,9 @@ tasks.withType<Test> {
 tasks.build {
 	dependsOn("shadowJar")
 }
+
+tasks.jar {
+	manifest {
+		attributes["Main-Class"]= "com.hgstrat.exchangebridge.ExchangeBridgeApplicationKt"
+	}
+}

@@ -21,7 +21,7 @@ enum class OrderState (private val step: Int) {
         }
     }
 
-    operator fun OrderState.compareTo(other: OrderState) = step.compareTo(other.step)
+    //operator fun OrderState.compareTo(other: OrderState) = step.compareTo(other.step)
 
     fun isCancelState(): Boolean = Companion.isCancelState(this)
 
