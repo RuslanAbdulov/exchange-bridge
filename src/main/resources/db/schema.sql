@@ -16,3 +16,14 @@ create table if not exists orders (
 );
 
 alter table orders add constraint if not exists orders_uq unique (origin_order_id);
+
+create table if not exists exchange_symbol_info (
+    symbol varchar(20) not null,
+    exchange varchar(256) not null,
+    pair varchar(20),
+    tick_size numeric(12, 6),
+    step_size numeric(12, 8),
+    last_update timestamp default now(),
+    version integer,
+    primary key(symbol)
+);

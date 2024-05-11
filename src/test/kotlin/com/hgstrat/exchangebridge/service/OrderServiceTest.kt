@@ -79,7 +79,7 @@ class OrderServiceTest {
     @Test
     fun readAndWrapList() {
 
-        val bOrders = orderService.readAndWrapList(allOrdersResponse)
+        val bOrders = orderService.readAndWrapOrderList(allOrdersResponse)
         assertThat(bOrders).hasSize(2)
     }
 }

@@ -124,10 +124,13 @@ GET localhost:9000/test/order/ONEUSDT
 Content-Type: application/json
 ###
 
-GET localhost:9000/order/binance/
+GET localhost:9000/test/order/binance/
 Content-Type: application/json
 ###
 
 
 #POST https://fapi.binance.com/fapi/v1/order?side=SELL&symbol=ONEUSDT&type=TAKE_PROFIT&workingType=MARK_PRICE&priceProtect=true&timeInForce=GTE_GTC&quantity=250.000000&stopPrice=0.021000&price=0.020000&reduceOnly=true&newClientOrderId=web_OvuDNX3ZwpywxZJGWQu9_T&timestamp=1714930355138&signature=dad165384dab3c0df487e623b26a337abcfb4576148538f7f403461380ba8aa7
 #POST https://fapi.binance.com/fapi/v1/order?side=SELL&symbol=ONEUSDT&type=STOP&workingType=MARK_PRICE&priceProtect=true&timeInForce=GTE_GTC&quantity=250.000000&stopPrice=0.019000&price=0.020000&reduceOnly=true&newClientOrderId=web_OvuDNX3ZwpywxZJGWQu9_S&timestamp=1714930403678&signature=cf575d27660bd8ee7fa73161ec9b511dc4ba21026a77a57932680ccf8ddd6204
+
+POST localhost:9000/test/exchange-info/
+###

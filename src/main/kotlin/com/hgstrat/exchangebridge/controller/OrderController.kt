@@ -6,7 +6,8 @@ import org.slf4j.LoggerFactory
 import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Mono
 
-@RestController("/")
+@RestController
+@RequestMapping("/")
 class OrderController (
     val orderService: OrderService
 ) {

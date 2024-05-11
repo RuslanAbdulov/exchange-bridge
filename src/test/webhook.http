@@ -15,7 +15,7 @@ Content-Type: application/json
 
 ###
 
-POST 165.227.48.202:9000/webhook/tv/TVB-111/
+POST http://152.42.128.231:9000/webhook/tv/TVB-111/
 Content-Type: application/json
 
 {
@@ -58,3 +58,38 @@ Content-Type: application/json;charset=utf-8
 GET https://1247-5-134-58-242.ngrok-free.app/
 ###
 
+POST http://hgstrat.ddns.net/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.04,
+  "quantity": 125,
+  "originOrderId": "test1419",
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041
+}
+
+###
+
+
+#TODO  Account TVB-111, order Order(symbol=ONEUSDT, side=SELL, type=LIMIT, price=0.021, quantity=47.709, originOrderId=ONEUSDT.PT1T1715292960000, goodTillDate=null, timeFrame=1, stopLoss=0.021, takeProfit=0.021, sum=null, state=SIGNAL_RECEIVED, lastUpdate=null, account=null)
+POST http://localhost:9000/webhook/tv/TVB-111/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.0400,
+  "quantity": 125.709,
+  "originOrderId": "test1420",
+  "timeFrame": "17",
+  "takeProfit": 0.04010,
+  "stopLoss": 0.03900
+}
+
+###

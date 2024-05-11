@@ -25,4 +25,11 @@ class RepositoryConfiguration {
 
         return initializer
     }
+
+//    @Bean(initMethod = "start", destroyMethod = "stop")
+//    @Throws(SQLException::class)
+//    fun h2Server(): Server {
+//        return Server.createTcpServer("-tcp", "-tcpAllowOthers", "-tcpPort", "9021")
+//    }
+
 }

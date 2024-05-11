@@ -5,24 +5,32 @@ import com.binance.connector.futures.client.impl.UMWebsocketClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hgstrat.exchangebridge.model.*
+import com.hgstrat.exchangebridge.out.binance.futures.BExchangeInfo
 import com.hgstrat.exchangebridge.out.binance.futures.BOrderWrapper
+import com.hgstrat.exchangebridge.repository.ExchangeSymbolInfoRepository
 import com.hgstrat.exchangebridge.repository.OrderRepository
+import com.hgstrat.exchangebridge.repository.entity.ExchangeSymbolInfoEntity
 import com.hgstrat.exchangebridge.repository.entity.OrderEntity
 import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.core.scheduler.Schedulers
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.temporal.ChronoUnit
+import kotlin.math.log10
 
 @Service
 class OrderService(
     val restClient: UMFuturesClientImpl,
     val wsClient: UMWebsocketClientImpl,
     val objectMapper: ObjectMapper,
-    val orderRepository: OrderRepository
+    val orderRepository: OrderRepository,
+    val exchangeRepository: ExchangeSymbolInfoRepository,
+    val domainMapper: DomainMapper
 ) {
 
     companion object {
@@ -48,14 +56,14 @@ class OrderService(
 //            //filter by last update?
             .flatMapIterable { symbol ->
                 val exchangeResponse = getFromExchange(symbol)
-                readAndWrapList(exchangeResponse)
+                readAndWrapOrderList(exchangeResponse)
             }
             .mapNotNull { bOrder ->
                 updateState(bOrder)
                     .filter { it.state == OrderState.ORDER_FILLED }
                     .flatMap { orderEntity ->
-                        placeTakeProfit(mapToDomain(orderEntity))
-                        placeStopLoss(mapToDomain(orderEntity))
+                        placeTakeProfit(domainMapper.mapToDomain(orderEntity))
+                        placeStopLoss(domainMapper.mapToDomain(orderEntity))
                         orderEntity.state = OrderState.TP_SL_PLACED
                         orderRepository.save(orderEntity)
                     }
@@ -80,11 +88,16 @@ class OrderService(
             }
     }
 
-    fun readAndWrapList(response: String): List<BOrderWrapper> {
+    fun readAndWrapOrderList(response: String): List<BOrderWrapper> {
         val rawOrders: List<Map<String, Any?>> = objectMapper.readValue(response)
         return rawOrders.stream()
             .map { BOrderWrapper(it) }
             .toList()
+    }
+
+    fun readExchangeInfo(response: String): BExchangeInfo {
+        val exchangeInfo: BExchangeInfo = objectMapper.readValue(response)
+        return exchangeInfo
     }
 
     fun getFromExchange(symbol: String): String {
@@ -157,25 +170,40 @@ class OrderService(
 //            return
 //        }
 //    }
-
     fun placeLimitOrder(order: Order): Mono<String> {
-        val parameters = LinkedHashMap<String, Any?>()
+        val symbol = trimSymbol(order.symbol)
 
+        return Mono.zip(Mono.just(order), exchangeRepository.findBySymbol(symbol))
+            .map { tuple ->
+                    val priceScale = -log10(tuple.t2.tickSize.toDouble()).toInt()
+                    val quantityScale = -log10(tuple.t2.stepSize.toDouble()).toInt()
+
+                    tuple.t1.copy(
+                        symbol = symbol,
+                        price = tuple.t1.price.setScale(priceScale, RoundingMode.HALF_UP),
+                        takeProfit = tuple.t1.takeProfit?.setScale(priceScale, RoundingMode.HALF_UP),
+                        stopLoss = tuple.t1.stopLoss?.setScale(priceScale, RoundingMode.HALF_UP),
+                        quantity = tuple.t1.quantity.setScale(quantityScale, RoundingMode.HALF_UP),
+                    )
+            }
+            .doOnNext{ saveOrder(it).subscribeOn(Schedulers.parallel()).subscribe() }
+            .map { restClient.account().newOrder(toParameters(it)) }
+    }
+
+    fun toParameters(order: Order): LinkedHashMap<String, Any?> {
+        val parameters = LinkedHashMap<String, Any?>()
         parameters["side"] = Side.getByName(order.side).toString()
         parameters["positionSide"] = "BOTH"
         //parameters["positionSide"] = Side.getByName(order.side).positionSide
-        parameters["symbol"] = trimSymbol(order.symbol)
+        parameters["symbol"] = order.symbol
         parameters["type"] = "LIMIT"
         parameters["goodTillDate"] = goodTillDate(order).toEpochMilli()
-        parameters["timeInForce"] = "GTD" //"GTC"
+        parameters["timeInForce"] = "GTD"
         parameters["quantity"] = order.quantity
         parameters["price"] = order.price
         parameters["newClientOrderId"] = order.originOrderId
-        //"securityType": "USDT_FUTURES",
 
-        return saveOrder(order)
-//            .doOnSuccess {restClient.account().newOrder(parameters) }
-            .then(Mono.just(restClient.account().newOrder(parameters)))
+        return parameters
     }
 
     fun placeTakeProfit(order: Order): String {
@@ -235,14 +263,30 @@ class OrderService(
     }
 
     fun saveOrder(order: Order): Mono<OrderResponse> {
-        val orderEntity = mapToEntity(order)
+        val orderEntity = domainMapper.mapToEntity(order)
         return orderRepository.save(orderEntity)
-            .map(this::mapToResponse)
+            .map(domainMapper::mapToResponse)
+    }
+
+    fun updateExchangeInfo(): Mono<Void> {
+        return Mono.just(restClient.market().exchangeInfo())
+            .map { readExchangeInfo(it) }
+            .flatMapMany { saveExchangeInfo(it) }
+            .then()
+    }
+
+    fun saveExchangeInfo(exchangeInfo: BExchangeInfo): Flux<ExchangeSymbolInfoEntity> {
+        return Flux.fromStream(
+            exchangeInfo.symbols.stream()
+                .map { domainMapper.mapToEntity(it) }
+                .map { exchangeRepository.save(it) }
+        )
+            .flatMap { it }
     }
 
     fun findBySymbol(symbol: String): Flux<OrderResponse> {
         return orderRepository.findBySymbol(symbol)
-            .map(this::mapToResponse)
+            .map(domainMapper::mapToResponse)
     }
 
     fun trimSymbol(symbol: String): String {
@@ -250,58 +294,6 @@ class OrderService(
             symbol.dropLast(2)
         else
             symbol
-    }
-
-    fun mapToEntity(order: Order): OrderEntity {
-        return OrderEntity(
-            symbol = order.symbol,
-            side = order.side,
-            type = order.type,
-            price = order.price,
-            quantity = order.quantity,
-            originOrderId = order.originOrderId,
-            timeFrame = order.timeFrame,
-            stopLoss = order.stopLoss,
-            takeProfit = order.takeProfit,
-            state = order.state,
-            account = order.account!!
-        )
-    }
-
-    fun mapToDomain(order: OrderEntity): Order {
-        return Order(
-            symbol = order.symbol,
-            side = order.side,
-            type = order.type,
-            price = order.price,
-            quantity = order.quantity,
-            originOrderId = order.originOrderId,
-            timeFrame = order.timeFrame,
-            stopLoss = order.stopLoss,
-            takeProfit = order.takeProfit,
-            state = order.state,
-            lastUpdate = order.lastUpdate,
-            account = order.account
-        )
-    }
-
-    fun mapToResponse(order: OrderEntity): OrderResponse {
-        return OrderResponse(
-            id = order.id!!,
-            symbol = order.symbol,
-            state = order.state,
-            side = order.side,
-            type = order.type,
-            price = order.price,
-            quantity = order.quantity,
-            originOrderId = order.originOrderId,
-            exchangeOrderId = order.exchangeOrderId,
-            timeFrame = order.timeFrame,
-            stopLoss = order.stopLoss,
-            takeProfit = order.takeProfit,
-            lastUpdate = order.lastUpdate,
-            account = order.account
-        )
     }
 
     @PreDestroy

@@ -7,13 +7,20 @@ import org.springframework.web.bind.annotation.*
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 
-@RestController("/test")
+@RestController
+@RequestMapping("/test")
 class TestController (
     val orderService: OrderService
 ) {
 
     @GetMapping("/")
-    fun index() = "Ok!"
+    fun index() = "OK"
+
+    @PostMapping("/exchange-info/")
+    fun updateExchangeInfo(): Mono<String> {
+        return orderService.updateExchangeInfo()
+            .thenReturn("OK")
+    }
 
     @PostMapping("/new-order/porxy/")
     fun newOrderProxy(@RequestBody parameters: LinkedHashMap<String, Any?>): String {
