@@ -136,7 +136,7 @@ class OrderService(
     }
 
     private fun goodTillDate(order: Order): Instant {
-        val minGoodTillDate = Instant.now().plusSeconds(601)
+        val minGoodTillDate = Instant.now().plusSeconds(605)
         if (order.goodTillDate != null && order.goodTillDate >= minGoodTillDate) {
             return order.goodTillDate
         }
@@ -225,7 +225,7 @@ class OrderService(
         parameters["timeInForce"] = "GTE_GTC" //GTC
         parameters["quantity"] = order.quantity
         parameters["stopPrice"] = stopPrice
-        parameters["price"] = order.price
+        parameters["price"] = stopPrice
         parameters["reduceOnly"] = true
         parameters["newClientOrderId"] =
             if (order.originOrderId != null)

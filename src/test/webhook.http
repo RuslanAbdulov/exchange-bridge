@@ -65,12 +65,12 @@ Content-Type: application/json
   "symbol": "ONEUSDT",
   "side": "SELL",
   "type": "LIMIT",
-  "price": 0.04,
-  "quantity": 125,
-  "originOrderId": "test1419",
+  "price": 0.01944,
+  "quantity": 420.032,
+  "originOrderId": "test1301",
   "timeFrame": "17",
-  "takeProfit": 0.039,
-  "stopLoss": 0.041
+  "takeProfit": 0.01906,
+  "stopLoss": 0.01984
 }
 
 ###
