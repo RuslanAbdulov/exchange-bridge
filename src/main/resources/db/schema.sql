@@ -1,5 +1,5 @@
 create table if not exists orders (
-    id IDENTITY primary key,
+    id identity primary key,
     symbol varchar(20),
     side varchar(20),
     type varchar(20),
@@ -12,7 +12,7 @@ create table if not exists orders (
     take_profit numeric(12, 6),
     state varchar(36),
     last_update timestamp default now(),
-    ex_bridge_account varchar(256)
+    account_code varchar(256)
 );
 
 alter table orders add constraint if not exists orders_uq unique (origin_order_id);
@@ -27,3 +27,21 @@ create table if not exists exchange_symbol_info (
     version integer,
     primary key(symbol)
 );
+
+alter table exchange_symbol_info add constraint if not exists exchange_symbol_info_uq unique (symbol, exchange);
+
+create table if not exists accounts (
+    id identity primary key,
+    code varchar(256) not null,
+    exchange varchar(256) not null,
+    api_key varchar not null,
+    secret_key varchar not null,
+    active boolean not null default true,
+    master boolean not null default false,
+    last_update timestamp default now()
+    );
+alter table accounts add constraint if not exists exchange_symbol_info_uq unique (code, exchange);
+
+
+alter table if exists orders alter column if exists ex_bridge_account rename to account_code;
+alter table if exists orders alter column if exists account_code set not null;

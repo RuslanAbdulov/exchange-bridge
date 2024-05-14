@@ -1,7 +1,5 @@
 package com.hgstrat.exchangebridge.service
 
-import com.binance.connector.futures.client.impl.UMFuturesClientImpl
-import com.binance.connector.futures.client.impl.UMWebsocketClientImpl
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.hgstrat.exchangebridge.model.*
@@ -11,7 +9,6 @@ import com.hgstrat.exchangebridge.repository.ExchangeSymbolInfoRepository
 import com.hgstrat.exchangebridge.repository.OrderRepository
 import com.hgstrat.exchangebridge.repository.entity.ExchangeSymbolInfoEntity
 import com.hgstrat.exchangebridge.repository.entity.OrderEntity
-import jakarta.annotation.PreDestroy
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
@@ -25,8 +22,7 @@ import kotlin.math.log10
 
 @Service
 class OrderService(
-    val restClient: UMFuturesClientImpl,
-    val wsClient: UMWebsocketClientImpl,
+    val accountService: AccountService,
     val objectMapper: ObjectMapper,
     val orderRepository: OrderRepository,
     val exchangeRepository: ExchangeSymbolInfoRepository,
@@ -52,18 +48,22 @@ class OrderService(
     }
 
     fun getAllFromExchangeAndUpdate(): Flux<OrderEntity> {
-        return orderRepository.findAllSymbols()
+        return accountService.activeAccounts()
+            .flatMap { getAllFromExchangeAndUpdate(it) }
+    }
+    fun getAllFromExchangeAndUpdate(account: String): Flux<OrderEntity> {
+        return orderRepository.findAllSymbols(account)
 //            //filter by last update?
             .flatMapIterable { symbol ->
-                val exchangeResponse = getFromExchange(symbol)
+                val exchangeResponse = getFromExchange(symbol, account)
                 readAndWrapOrderList(exchangeResponse)
             }
             .mapNotNull { bOrder ->
                 updateState(bOrder)
                     .filter { it.state == OrderState.ORDER_FILLED }
                     .flatMap { orderEntity ->
-                        placeTakeProfit(domainMapper.mapToDomain(orderEntity))
-                        placeStopLoss(domainMapper.mapToDomain(orderEntity))
+                        placeTakeProfit(domainMapper.mapToDomain(orderEntity), account)
+                        placeStopLoss(domainMapper.mapToDomain(orderEntity), account)
                         orderEntity.state = OrderState.TP_SL_PLACED
                         orderRepository.save(orderEntity)
                     }
@@ -100,25 +100,21 @@ class OrderService(
         return exchangeInfo
     }
 
-    fun getFromExchange(symbol: String): String {
+    fun getFromExchange(symbol: String, account: String): String {
         val parameters = LinkedHashMap<String, Any?>()
         parameters["symbol"] = trimSymbol(symbol)
-        val allOrderResponse: String = restClient.account().allOrders(parameters)
+        val allOrderResponse: String = accountService.exchangeClient(account)!!.account().allOrders(parameters)
         return allOrderResponse
     }
 
-    fun getPosition(symbol: String): String {
-        val parameters = LinkedHashMap<String, Any?>()
-        return restClient.account().positionInformation(parameters)
-    }
-
-
-    //TODO get api key for the account
     fun routeAndProcess(order: Order, account: String): Mono<String> {
         order.account = account
         return when (OrderType.getByName(order.type)) {
-            OrderType.LIMIT -> placeLimitOrder(order)
-            OrderType.CANCEL -> cancelOrder(symbol = order.symbol, originOrderId = order.originOrderId)
+            OrderType.LIMIT -> placeLimitOrder(order, account)
+            OrderType.CANCEL -> cancelOrder(
+                symbol = order.symbol,
+                originOrderId = order.originOrderId,
+                account = account)
             else -> throw IllegalArgumentException("Unsupported order type ${order.type}")
         }
 
@@ -130,7 +126,7 @@ class OrderService(
 //        val msg0:  Map<String,String> = objectMapper.readValue(result, typeRef)
 
     fun newOrderProxy(parameters: LinkedHashMap<String, Any?>): String {
-        val result = restClient.account().newOrder(parameters)
+        val result = accountService.masterClient().account().newOrder(parameters)
         //val msg: Map<String,String> = objectMapper.readValue(result)
         return result
     }
@@ -170,7 +166,7 @@ class OrderService(
 //            return
 //        }
 //    }
-    fun placeLimitOrder(order: Order): Mono<String> {
+    fun placeLimitOrder(order: Order, account: String): Mono<String> {
         val symbol = trimSymbol(order.symbol)
 
         return Mono.zip(Mono.just(order), exchangeRepository.findBySymbol(symbol))
@@ -187,7 +183,7 @@ class OrderService(
                     )
             }
             .doOnNext{ saveOrder(it).subscribeOn(Schedulers.parallel()).subscribe() }
-            .map { restClient.account().newOrder(toParameters(it)) }
+            .map { accountService.exchangeClient(account)!!.account().newOrder(toParameters(it)) }
     }
 
     fun toParameters(order: Order): LinkedHashMap<String, Any?> {
@@ -206,15 +202,15 @@ class OrderService(
         return parameters
     }
 
-    fun placeTakeProfit(order: Order): String {
-        return placeControlOrder(order, "TAKE_PROFIT", order.takeProfit!!)
+    fun placeTakeProfit(order: Order, account: String): String {
+        return placeControlOrder(order, "TAKE_PROFIT", order.takeProfit!!, account)
     }
 
-    fun placeStopLoss(order: Order): String {
-        return placeControlOrder(order, "STOP", order.stopLoss!!)
+    fun placeStopLoss(order: Order, account: String): String {
+        return placeControlOrder(order, "STOP", order.stopLoss!!, account)
     }
 
-    fun placeControlOrder(order: Order, type: String, stopPrice: BigDecimal): String {
+    fun placeControlOrder(order: Order, type: String, stopPrice: BigDecimal, account: String): String {
         val parameters = LinkedHashMap<String, Any?>()
         parameters["side"] = Side.getByName(order.side).opposite().toString()
         //parameters["positionSide"] = "BOTH" Side.getByName(order.side).positionSide
@@ -233,7 +229,7 @@ class OrderService(
             else
                 null
 
-        return restClient.account().newOrder(parameters)
+        return accountService.exchangeClient(account)!!.account().newOrder(parameters)
     }
 
 //    fun placeStopLoss(order: Order): String {
@@ -253,13 +249,16 @@ class OrderService(
 //        return client.account().newOrder(parameters)
 //    }
 
-    fun cancelOrder(symbol: String, orderId: Long? = null, originOrderId: String? = null): Mono<String> {
+    fun cancelOrder(symbol: String,
+                    orderId: Long? = null,
+                    originOrderId: String? = null,
+                    account: String): Mono<String> {
         val parameters = LinkedHashMap<String, Any?>()
         parameters["symbol"] = trimSymbol(symbol)
         parameters["orderId"] = orderId
         parameters["origClientOrderId"] = originOrderId
 
-        return Mono.just(restClient.account().cancelOrder(parameters))
+        return Mono.just(accountService.exchangeClient(account)!!.account().cancelOrder(parameters))
     }
 
     fun saveOrder(order: Order): Mono<OrderResponse> {
@@ -269,7 +268,7 @@ class OrderService(
     }
 
     fun updateExchangeInfo(): Mono<Void> {
-        return Mono.just(restClient.market().exchangeInfo())
+        return Mono.just(accountService.masterClient().market().exchangeInfo())
             .map { readExchangeInfo(it) }
             .flatMapMany { saveExchangeInfo(it) }
             .then()
@@ -296,9 +295,4 @@ class OrderService(
             symbol
     }
 
-    @PreDestroy
-    fun destroy() {
-        //restClient.userData().closeListenKey()
-        wsClient.closeAllConnections()
-    }
 }

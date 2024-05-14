@@ -2,6 +2,7 @@ package com.hgstrat.exchangebridge.service
 
 import com.hgstrat.exchangebridge.model.*
 import com.hgstrat.exchangebridge.out.binance.futures.BExchangeInfo
+import com.hgstrat.exchangebridge.repository.entity.AccountEntity
 import com.hgstrat.exchangebridge.repository.entity.ExchangeSymbolInfoEntity
 import com.hgstrat.exchangebridge.repository.entity.OrderEntity
 import org.slf4j.LoggerFactory
@@ -81,6 +82,15 @@ class DomainMapper {
             tickSize = exchangeSymbol.tickSize(),
             stepSize = exchangeSymbol.stepSize()
         )
+    }
+
+    fun mapToEntity(account: Account): AccountEntity {
+        return AccountEntity(
+            code = account.code,
+            apiKey = account.apiKey,
+            secretKey = account.secretKey,
+            active = account.active,
+            master = account.master)
     }
 
 }

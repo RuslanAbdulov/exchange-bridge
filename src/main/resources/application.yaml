@@ -48,11 +48,6 @@ spring:
       settings.trace: true
       settings.web-allow-others: false
 
-management:
-  endpoints:
-    web:
-      exposure.include: info,health,h2console
-
 hgstrat:
   binance:
     api-key: ${binance-api-key}

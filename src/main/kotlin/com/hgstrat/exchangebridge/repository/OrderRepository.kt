@@ -12,7 +12,7 @@ interface OrderRepository: R2dbcRepository<OrderEntity, Int> {
 
     fun findByOriginOrderId(originOrderId: String): Mono<OrderEntity>
 
-    @Query("select distinct symbol from orders")
-    fun findAllSymbols(): Flux<String>
+    @Query("select distinct symbol from orders where account_code = :account")
+    fun findAllSymbols(account: String): Flux<String>
 
 }

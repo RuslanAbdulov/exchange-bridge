@@ -48,7 +48,7 @@ class OrderEntity (
     @Column
     var state: OrderState? = OrderState.SIGNAL_RECEIVED,
 
-    @Column("ex_bridge_account")
+    @Column("account_code")
     val account: String,
 
     @Column

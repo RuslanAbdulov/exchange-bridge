@@ -43,5 +43,7 @@ out/
 *.env.json
 /logs
 .DS_Store
-./*.mv.db
-./*.trace.db
+./
+*.mv.db
+*.trace.db
+*.lock.db

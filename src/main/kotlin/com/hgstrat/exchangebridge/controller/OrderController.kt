@@ -12,7 +12,7 @@ class OrderController (
     val orderService: OrderService
 ) {
     companion object {
-        val log = LoggerFactory.getLogger(OrderService::class.java.name)
+        val log = LoggerFactory.getLogger(OrderController::class.java.name)
     }
 
     @PostMapping("/webhook/tv/{account}/")

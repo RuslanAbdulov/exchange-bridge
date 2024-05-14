@@ -15,3 +15,4 @@ cd app
 ./start.sh
 #load exchange symbol info, once for a droplet is  enough
 curl -X POST --location "http://localhost:9000/test/exchange-info/"
+curl -X POST --location "http://localhost:9000/accounts/" -H "Content-Type: application/json" -d '{"code": "TVB-111", "apiKey": "", "secretKey": "", "active": true, "master": true}'

@@ -40,7 +40,6 @@ dependencies {
 
 	implementation("io.github.binance:binance-futures-connector-java:3.0.3")
 
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	testImplementation("org.springframework.boot:spring-boot-starter-test") {
 		exclude(module = "mockito-core")
