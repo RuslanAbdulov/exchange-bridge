@@ -16,6 +16,8 @@ data class OrderResponse(
     var timeFrame: String?,
     var stopLoss: BigDecimal?,
     var takeProfit: BigDecimal?,
+    var trailingStopCallbackRate: BigDecimal?,
+    var trailingStopActivationPrice: BigDecimal?,
 
     var state: OrderState?,
     var lastUpdate: Instant?,

@@ -34,6 +34,8 @@ class DomainMapper {
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
+            trailingStopCallbackRate = order.trailingStopCallbackRate,
+            trailingStopActivationPrice = order.trailingStopActivationPrice,
             state = order.state,
             account = order.account!!
         )
@@ -50,6 +52,8 @@ class DomainMapper {
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
+            trailingStopCallbackRate = order.trailingStopCallbackRate,
+            trailingStopActivationPrice = order.trailingStopActivationPrice,
             state = order.state,
             lastUpdate = order.lastUpdate,
             account = order.account
@@ -70,6 +74,8 @@ class DomainMapper {
             timeFrame = order.timeFrame,
             stopLoss = order.stopLoss,
             takeProfit = order.takeProfit,
+            trailingStopCallbackRate = order.trailingStopCallbackRate,
+            trailingStopActivationPrice = order.trailingStopActivationPrice,
             lastUpdate = order.lastUpdate,
             account = order.account
         )
@@ -87,6 +93,7 @@ class DomainMapper {
     fun mapToEntity(account: Account): AccountEntity {
         return AccountEntity(
             code = account.code,
+            name = account.name,
             apiKey = account.apiKey,
             secretKey = account.secretKey,
             active = account.active,

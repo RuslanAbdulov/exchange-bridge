@@ -21,6 +21,9 @@ class AccountEntity (
     val exchange: String = "BINANCE",
 
     @Column
+    var name: String? = null,
+
+    @Column
     val apiKey: String,
 
     @Column

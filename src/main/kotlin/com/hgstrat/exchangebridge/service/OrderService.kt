@@ -62,8 +62,10 @@ class OrderService(
                 updateState(bOrder)
                     .filter { it.state == OrderState.ORDER_FILLED }
                     .flatMap { orderEntity ->
-                        placeTakeProfit(domainMapper.mapToDomain(orderEntity), account)
-                        placeStopLoss(domainMapper.mapToDomain(orderEntity), account)
+                        val domainOrder = domainMapper.mapToDomain(orderEntity)
+                        placeTakeProfit(domainOrder, account)
+                        placeStopLoss(domainOrder, account)
+                        placeTrailingStop(domainOrder, account)
                         orderEntity.state = OrderState.TP_SL_PLACED
                         orderRepository.save(orderEntity)
                     }
@@ -208,6 +210,29 @@ class OrderService(
 
     fun placeStopLoss(order: Order, account: String): String {
         return placeControlOrder(order, "STOP", order.stopLoss!!, account)
+    }
+
+    fun placeTrailingStop(order: Order, account: String): String {
+        if (order.trailingStopCallbackRate == null) {
+            return ""
+        }
+        val parameters = LinkedHashMap<String, Any?>()
+        parameters["side"] = Side.getByName(order.side).opposite().toString()
+        parameters["symbol"] = trimSymbol(order.symbol)
+        parameters["type"] = "TRAILING_STOP_MARKET"
+        parameters["workingType"] = "MARK_PRICE" //CONTRACT_PRICE/MARK_PRICE
+        parameters["timeInForce"] = "GTE_GTC"
+        parameters["quantity"] = order.quantity
+        parameters["callbackRate"] = order.trailingStopCallbackRate
+        parameters["activationPrice"] = order.trailingStopActivationPrice
+        parameters["reduceOnly"] = true
+        parameters["newClientOrderId"] =
+            if (order.originOrderId != null)
+                "${order.originOrderId}_trail"
+            else
+                null
+
+        return accountService.exchangeClient(account)!!.account().newOrder(parameters)
     }
 
     fun placeControlOrder(order: Order, type: String, stopPrice: BigDecimal, account: String): String {

@@ -15,4 +15,10 @@ cd app
 ./start.sh
 #load exchange symbol info, once for a droplet is  enough
 curl -X POST --location "http://localhost:9000/test/exchange-info/"
+#create master user
 curl -X POST --location "http://localhost:9000/accounts/" -H "Content-Type: application/json" -d '{"code": "TVB-111", "apiKey": "", "secretKey": "", "active": true, "master": true}'
+
+/Users/ruslan/Library/Java/JavaVirtualMachines/openjdk-22.0.1/Contents/Home/bin/java  -jar build/libs/exchange-bridge-0.0.1-SNAPSHOT.jar
+
+#copy remote database
+scp root@152.42.128.231:/root/app/orderdb.mv.db ./remote-orderdb.mv.db

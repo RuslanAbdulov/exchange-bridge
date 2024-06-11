@@ -93,3 +93,20 @@ Content-Type: application/json
 }
 
 ###
+
+POST {{host}}/webhook/tv/TVB-222/
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.04,
+  "quantity": 10,
+  "originOrderId": "test1306",
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041
+}
+
+###

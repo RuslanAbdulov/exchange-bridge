@@ -14,6 +14,8 @@ data class Order(
     val timeFrame: String,
     val stopLoss: BigDecimal? = null,
     val takeProfit: BigDecimal? = null,
+    val trailingStopCallbackRate: BigDecimal? = null,
+    val trailingStopActivationPrice: BigDecimal? = null,
     //could calc quantity from price and sum
     val sum: BigDecimal? = null,
 

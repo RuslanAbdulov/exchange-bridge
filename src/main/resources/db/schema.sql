@@ -34,6 +34,7 @@ create table if not exists accounts (
     id identity primary key,
     code varchar(256) not null,
     exchange varchar(256) not null,
+    name varchar,
     api_key varchar not null,
     secret_key varchar not null,
     active boolean not null default true,
@@ -45,3 +46,6 @@ alter table accounts add constraint if not exists exchange_symbol_info_uq unique
 
 alter table if exists orders alter column if exists ex_bridge_account rename to account_code;
 alter table if exists orders alter column if exists account_code set not null;
+
+alter table if exists orders add column if not exists trailing_stop_callback_rate numeric(12, 6);
+alter table if exists orders add column if not exists trailing_stop_activation_price numeric(4, 2);

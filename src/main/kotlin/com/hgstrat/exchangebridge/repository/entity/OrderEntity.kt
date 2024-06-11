@@ -46,6 +46,12 @@ class OrderEntity (
     val takeProfit: BigDecimal? = null,
 
     @Column
+    val trailingStopCallbackRate: BigDecimal? = null,
+
+    @Column
+    val trailingStopActivationPrice: BigDecimal? = null,
+
+    @Column
     var state: OrderState? = OrderState.SIGNAL_RECEIVED,
 
     @Column("account_code")

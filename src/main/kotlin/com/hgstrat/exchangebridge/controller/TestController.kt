@@ -48,4 +48,9 @@ class TestController (
             .map { it.toString() }
     }
 
+    @PostMapping("/order/trailingStop/{account}")
+    fun trailingStop(@RequestBody order: Order, @PathVariable("account") account: String): String {
+         return orderService.placeTrailingStop(order, account)
+    }
+
 }

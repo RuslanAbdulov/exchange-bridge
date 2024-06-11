@@ -134,3 +134,61 @@ Content-Type: application/json
 
 POST localhost:9000/test/exchange-info/
 ###
+
+POST {{host}}/accounts/
+Content-Type: application/json
+
+{
+  "code": "TVB-111",
+  "name": "Ruslan",
+  "apiKey": "Vo5TqUcQ4mSlR0e81vT9vk0n03NSwyXQ4ewt2A2amsSV4rLiuHgEUIKiqcsthqHd",
+  "secretKey": "g9VwDtm2VtwubUSFlHOJklifQN3CgGwVv2HyZBKunaGBtHZzxs4vOIDjFwumCWh4",
+  "active": true,
+  "master": true
+}
+
+###
+
+POST {{host}}/accounts/
+Content-Type: application/json
+
+{
+  "code": "TVB-222",
+  "name": "Elchin 1",
+  "apiKey": "GcwrYIxB0CGXag1dB2Jg2waR7yUKj2l3c2sP9h4s1dtHGKHKEai7M4ZzOxLGI1mi",
+  "secretKey": "V4W31vMsZv4DUdaLMDhwpLOU9Xgjo36SPxEopzwzEKS2GIZGOMSB9hLGgYboDwDn"
+}
+
+###
+
+POST {{host}}/accounts/
+Content-Type: application/json
+
+{
+  "code": "TVB-223",
+  "name": "Elchin 2",
+  "apiKey": "2b0X6a6G7WXHPVZjPfmrteCF5rhW0I5tgJMwULKKtapZVkk94L0y5hz7phK9HuO4",
+  "secretKey": "HMyB2jZoYPg6XYGVeP0zpWDG0mwfHNPefjfThPS3DMbDIWqIsP4G9jxOBWvsnRku"
+}
+
+###
+
+
+POST {{host}}/test/order/trailingStop/TVB-111
+Content-Type: application/json
+
+{
+  "symbol": "ONEUSDT",
+  "side": "SELL",
+  "type": "LIMIT",
+  "price": 0.04,
+  "quantity": 250,
+  "originOrderId": "test1307",
+  "timeFrame": "17",
+  "takeProfit": 0.039,
+  "stopLoss": 0.041,
+  "trailingStopCallbackRate": 1.0,
+  "trailingStopActivationPrice": 0.0405
+}
+
+###
