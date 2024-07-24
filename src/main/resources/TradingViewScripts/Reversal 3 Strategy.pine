@@ -1,0 +1,159 @@
+//@version=5
+strategy("Reversal 3 Strategy", overlay = true, initial_capital=10000, default_qty_type = strategy.cash, default_qty_value = 100, max_labels_count = 500, pyramiding = 3)
+
+shortLongStrategyInput = input.string("BOTH", "Short or Long strategy", ["SHORT", "LONG", "BOTH"])
+neutralFirstCandleInput = input.bool(true, "Neutral first candle")
+
+c1HighLowExceedInput = input.float(0.01, "C1 high/low exceeds percentage", group = "C1") * 0.01
+c2HighLowExceedInput = input.float(0.01, "C2 high/low exceeds percentage", group = "C2") * 0.01
+c1VolumeExceedInput = input.float(1.0, "C1 Volume exceeds percentage", group = "C1") * 0.01
+c2VolumeExceedInput = input.float(1.0, "C2 Volume exceeds percentage", group = "C2") * 0.01
+
+priceRollbackInput = input.float(50, "Price Rollback percentage", tooltip = "Price rollback percentage to enter a position", group ="Position") * 0.01
+SLTPfromEntryInput = input.bool(true, "Stop loss and Take profit calc from entry point", group ="Position")
+stopLossInput = input.float(0.5, "Stop loss", tooltip = "Price movement percentage to close order", group ="Position")  * 0.01
+takeProfitInput = input.float(1, "Take profit", tooltip = "Price movement percentage to close order", group ="Position")  * 0.01
+
+trailingStopInput = input.bool(false, "Use trailing stop", tooltip = "If set, trailing stop is used insted of SL/TP", group ="Trailing stop")
+trailActivationInput = input.float(2, "Trail activation price percentage", group ="Trailing stop") * 0.01
+trailOffsetInput = input.float(1, "Trail offset percentage", group ="Trailing stop") * 0.01
+
+timeAndDateInput = input.time(timestamp("01 Jan 2021 00:00"), "Date and time")
+barIsLater = time > timeAndDateInput
+
+var bool shortStrategy = shortLongStrategyInput == "SHORT" or shortLongStrategyInput == "BOTH"
+var bool longStrategy = shortLongStrategyInput == "LONG" or shortLongStrategyInput == "BOTH"
+
+//TODO more precision for _limitPrice, _stopLoss, _takeProfit
+jsonAlert(_action, _type, _limitPrice, _quantity, _stopLoss, _takeProfit, _trailOffset, _trailActivationPrice, _orderId, _message) =>
+    alert_array = array.new_string()
+    //array.push(alert_array, '"symbol": "' + syminfo.ticker + '"')
+    array.push(alert_array, str.format('"symbol": "{0}{1}"', syminfo.basecurrency, syminfo.currency))
+    array.push(alert_array, str.format('"timeFrame": "{0}"', timeframe.period))
+    if _action != ''
+        array.push(alert_array, '"side": "' + _action + '"')
+    if _type != ''
+        array.push(alert_array, '"type": "' + _type + '"')
+    if not na(_limitPrice)
+        //array.push(alert_array, '"price": "' + _limitPrice + '"')
+        array.push(alert_array, str.format('"price": "{0}"', str.tostring(_limitPrice, '#.#####')))
+    if not na(_quantity)
+        //array.push(alert_array, '"quantity": "' + _quantity + '"')
+        array.push(alert_array, str.format('"quantity": "{0}"', str.tostring(_quantity, '#.####')))
+    if not na(_stopLoss)
+        array.push(alert_array, str.format('"stopLoss": "{0}"', str.tostring(_stopLoss, '#.#####')))
+    if not na(_takeProfit)
+        array.push(alert_array, str.format('"takeProfit": "{0}"', str.tostring(_takeProfit, '#.#####')))
+
+    if not na(_trailOffset)
+        array.push(alert_array, str.format('"trailingStopCallbackRate": "{0}"', str.tostring(_trailOffset * 100, '#.##')))
+    if not na(_trailActivationPrice)
+        array.push(alert_array, str.format('"trailingStopActivationPrice": "{0}"', str.tostring(_trailActivationPrice, '#.#####')))
+
+    if _orderId != ''
+        array.push(alert_array, '"originOrderId": "' + _orderId + '"')
+    else
+        array.push(alert_array, str.format('"originOrderId": "{0}T{1}T{2}"', syminfo.ticker, timeframe.period, str.replace_all(str.tostring(time), ',', '') ))
+    if _message != ''
+        array.push(alert_array, '"message": "' + _message + '"')
+
+    '{' + array.join(alert_array,', ') + '}'
+
+
+upBar = close > open
+
+//@variable Stop-loss price for exit commands.
+var float stopLoss = na
+//@variable Take-profit price for exit commands.
+var float takeProfit = na
+//@variable Trail activation price
+var float trailActivationPrice = na
+//@variable Trail offset in ticks
+var float trailOffsetTicks = na
+// var float limitPrice = na
+signal = false
+string signalId = na
+var int signalCount = 0
+
+
+c1_sameDirection = neutralFirstCandleInput or upBar[1] == upBar
+c1_newHighLow = false
+if c1HighLowExceedInput >= 0
+    c1_newHighLow := upBar ? high >= high[1] * (1 + c1HighLowExceedInput) : low <= low[1] * (1 - c1HighLowExceedInput)
+else
+    //high and low are within previous candle
+    c1_newHighLow := high <= high[1] and low >= low[1]
+c1_volumeCondition = volume >= volume[1] * (1 + c1VolumeExceedInput)
+c1 = c1_sameDirection and c1_newHighLow and c1_volumeCondition
+
+c2_oppositeDirection = upBar[1] != upBar
+c2_newHighLow = false
+if c2HighLowExceedInput >= 0
+    c2_newHighLow := upBar[1] ? high >= high[1] * (1 + c2HighLowExceedInput) : low <= low[1] * (1 - c2HighLowExceedInput)
+else
+    //high and low are within previous candle
+    c2_newHighLow := high <= high[1] and low >= low[1]
+c2_volumeCondition = volume >= volume[1] * (1 + c2VolumeExceedInput)
+c2 = c1[1] and c2_oppositeDirection and c2_newHighLow and c2_volumeCondition
+if c1[1] and not c2
+    log.info("Not c2 {0}, {1}, {2}", c2_oppositeDirection, c2_newHighLow, c2_volumeCondition)
+
+limitPrice = upBar ? high - (high - low) * (priceRollbackInput) : low + (high - low) * (priceRollbackInput)
+if c2
+    //limitPrice := upBar ? low + (high - low)/4 : high - (high - low)/4
+    // limitPrice := upBar ? high : low
+    //stopLoss := upBar ? limitPrice * (1 - stopLossInput/100) : limitPrice * (1 + stopLossInput/100)
+    if SLTPfromEntryInput
+        stopLoss := upBar ? limitPrice * (1 - stopLossInput) : limitPrice * (1 + stopLossInput)
+    else
+        stopLoss := upBar ? low * (1 - stopLossInput) : high * (1 + stopLossInput)
+    takeProfit := upBar ? limitPrice * (1 + takeProfitInput) : limitPrice * (1 - takeProfitInput)
+
+    if trailingStopInput
+        trailActivationPrice := upBar ? limitPrice * (1 + trailActivationInput) : limitPrice * (1 - trailActivationInput)
+        trailOffsetTicks := trailOffsetInput * limitPrice / syminfo.mintick
+
+    log.info("Found c2, {0}, {1}, {2}", limitPrice, takeProfit, stopLoss)
+    if upBar and longStrategy
+        signal := true
+        label.new(bar_index, low, "Buy", style = label.style_label_up, color=color.yellow, size = size.normal)
+        signalCount := signalCount + 1
+        signalId := str.format("buy{0}", signalCount)
+        strategy.entry(signalId, strategy.long, limit = limitPrice)
+        if trailingStopInput
+            log.info("Trailing stop, {0}, {1}, {2}", trailActivationPrice, trailOffsetTicks)
+            strategy.exit("exit_ts_" + signalId, signalId, trail_price = trailActivationPrice, trail_offset = trailOffsetTicks, stop = stopLoss, limit = takeProfit)
+        else
+            strategy.exit("exit_" + signalId, signalId, stop = stopLoss, limit = takeProfit)
+        //alert("Buy " + syminfo.tickerid + "(" + timeframe.period + ") limit= " + str.tostring(limitPrice) + " stop=" + str.tostring(stopLoss) + " takeProfit=" + str.tostring(takeProfit) +  ".", alert.freq_once_per_bar)
+        alert(jsonAlert("BUY", "LIMIT", limitPrice, strategy.default_entry_qty(limitPrice), stopLoss, takeProfit, trailOffsetInput, trailActivationPrice, '', ''))
+    if not upBar and shortStrategy
+        signal := true
+        label.new(bar_index, high, "Sell", style = label.style_label_down, color=color.yellow, size = size.normal)
+        signalCount := signalCount + 1
+        signalId := str.format("sell{0}", signalCount)
+        strategy.entry(signalId, strategy.short, limit = limitPrice)
+        if trailingStopInput
+            log.info("Trailing stop, {0}, {1}, {2}", trailActivationPrice, trailOffsetTicks)
+            strategy.exit("exit_ts_" + signalId, signalId, trail_price = trailActivationPrice, trail_offset = trailOffsetTicks, stop = stopLoss, limit = takeProfit)
+        else
+            strategy.exit("exit_" + signalId, signalId, stop = stopLoss, limit = takeProfit)
+        //alert("Sell " + syminfo.tickerid + "(" + timeframe.period + ") limit= " + str.tostring(limitPrice) + " stop=" + str.tostring(stopLoss) + " takeProfit=" + str.tostring(takeProfit) +  ".", alert.freq_once_per_bar)
+        alert(jsonAlert("SELL", "LIMIT", limitPrice, strategy.default_entry_qty(limitPrice), stopLoss, takeProfit, trailOffsetInput, trailActivationPrice, '', ''))
+
+// Cancel if it order is not fulfilled in the next bar
+if signal[1] == true and (high < limitPrice[1] or low > limitPrice[1])
+    strategy.cancel(signalId[1])
+    if upBar[1]
+        label.new(bar_index, low, "Cancel", style = label.style_label_up, color=color.yellow, size = size.normal)
+    else
+        label.new(bar_index, high, "Cancel", style = label.style_label_down, color=color.yellow, size = size.normal)
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= stopLoss or high >= takeProfit
+    stopLoss   := na
+    takeProfit := na
+    trailActivationPrice := na
+    trailOffsetTicks := na
+
+//strategy.close_all()

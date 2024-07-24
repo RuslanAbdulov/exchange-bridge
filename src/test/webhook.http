@@ -110,3 +110,23 @@ Content-Type: application/json
 }
 
 ###
+
+
+
+POST {{host}}/webhook/tv/TVB-222/
+Content-Type: application/json
+
+{
+  "symbol": "SOLUSDT",
+  "side": "BUY",
+  "type": "LIMIT",
+  "price": 134.62556,
+  "quantity": 0.074,
+  "originOrderId": "SOLUSDT.PT52T1719064320000",
+  "timeFrame": "52",
+  "takeProfit": 175.01323,
+  "stopLoss": 129.91367
+}
+
+###
+

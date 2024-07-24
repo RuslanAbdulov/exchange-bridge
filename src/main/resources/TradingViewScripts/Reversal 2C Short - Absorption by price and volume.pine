@@ -1,0 +1,125 @@
+//@version=5
+indicator("Reversal 2C Short - Absorption by price and volume", overlay = true)
+
+trendBarsNumberInput = input.int(5, "Number of previous bars to compare with")
+trendLength = trendBarsNumberInput * 2
+
+barNumberFromTrendToReversalInput = input.int(10, "Number of bars allowed to wait from complete trend to reversal bar")
+
+rollbackPriceDropPercentageInput = input.float(30.0, "Trend breaking price drop percentage", tooltip = "(h1 - low)/(h1 - l1) > X%")
+thinBarPercentageInput = input.float(0.15, "Price change percentage to ignore as thin bar", tooltip = "(close - open)/open < X%")
+
+reversalBarUpperTailPercentageInput = input.float(30.0, "Reversal bar upper tail percentage of the body", tooltip = "(high - open)/(open - close) <= X%")
+reversalBarVolumePercentageInput = input.float(80, "Reversal bar volume from previous bar lower boundary", tooltip = "volume / volume[1] >= X%")
+reversalBarBottomClosePercentageInput = input.float(5.0, "Opt B: Reversal bar close bottom percentage", tooltip = "close - low <= X%")
+reversalBarfromPreviousPercentageInput = input.float(50.0, "Opt B: Whole reversal bar percentage from previos bar", tooltip = "(high - low)/(high[1] - low[1]) <= X%")
+
+
+l1 = ta.lowest(low, trendLength)
+l1_offset = math.abs(ta.lowestbars(low, trendLength))
+highestLength = (na(l1_offset) or l1_offset <= 0) ? 1 : l1_offset
+h1 = ta.highest(high, highestLength)
+h1_offset = math.abs(ta.highestbars(high, highestLength))
+
+oppositeBar = open > close
+thinBar = not oppositeBar and ((close - open)/open) * 100 <= thinBarPercentageInput
+rollbackBar = oppositeBar and ((h1 - low)/(h1 - l1)) * 100 > rollbackPriceDropPercentageInput
+trendBar = not oppositeBar and not thinBar
+c4A = false
+c4B = false
+
+barsSinceRollback = nz(ta.barssince(rollbackBar))
+candleBody = close - open
+// plot(trendBar? candleBody: na, title = "candleBody")
+// plot(barsSinceRollback, title = "barsSinceRollback")
+
+trendBarsNumber = math.sum(trendBar ? 1 : 0, math.min(trendLength, math.max(nz(barsSinceRollback), 1)))
+
+// found(index) => index != 0
+
+get(source, index) =>
+    offset = bar_index - index
+    offset <= 0 ? source : source[offset]
+
+offset(index) =>
+    if  bar_index <= index
+        log.error("bar_index {0} less than index {1}", bar_index, index)
+        1
+    else
+        index <= 0 ? (bar_index <= 1 ? 1 : bar_index - 1) : bar_index - index
+
+c2 = false
+c2_index = 0
+for i = 1 to barNumberFromTrendToReversalInput by 1
+
+    if barsSinceRollback[i] > trendBarsNumberInput and trendBarsNumber[i] >= trendBarsNumberInput
+        counter = trendLength
+        sum = 0.0
+        count = 0
+        trendBarAvg = while counter > 0
+            offset = i + 1 + trendLength - counter
+            if trendBar[offset]
+                sum := sum + candleBody[offset]
+                count := count + 1
+            counter := counter - 1
+            if count >= trendBarsNumberInput
+                break
+            sum / count
+
+        c2_avgCondition = candleBody[i] >= trendBarAvg
+        //log.info("trendBarAvg {0}, {1}", trendBarAvg, candleBody[1])
+        c2_upperThirdCondition = ((high[i] - close[i])/(high[i] - low[i])) * 100 <= 30
+        c2 := c2_avgCondition and c2_upperThirdCondition
+        if c2
+            //log.info("Found c2, sum {0}, count {1}", math.sum(trendBar[1] ? candleBody[1] : 0, trendBarsNumberInput), math.sum(trendBar[1] ? 1 : 0, trendBarsNumberInput))
+            label.new(bar_index[i], high[i], "c2", style = label.style_label_down, color=color.gray, size = size.tiny)
+            c2_index := bar_index[i]
+            log.info("c2 {0}, at {1}, now {2}", c2, bar_index[i], bar_index)
+            break
+
+lowestCloseAfterC2 = ta.lowest(close[1], math.min(offset(c2_index + 1), barNumberFromTrendToReversalInput))
+//at this point c2 is found withing 10 bars back, no close is below c2 open
+c2_open = c2 ? get(open, c2_index): na
+if c2 and trendBar[1] and lowestCloseAfterC2 >= c2_open
+    c3 = true
+    label.new(bar_index[1], high[1], "c3", style = label.style_label_down, color=color.green, size = size.small)
+    log.info("c3 {0}, at {1}, now {2}", c3, bar_index[1], bar_index)
+
+    //Option A
+    if c3 and oppositeBar
+        c4_newHighCondition = high >= high[1]
+        c4_lowerQuarterCondition = ((close - low)/(high - low)) * 100 <=  25
+        c4_priceCondition = high > high[1] and c4_lowerQuarterCondition and close <= open[1]
+        c4_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput //volume > volume[1]
+        c4_upperTailCondition = ((high - open)/(open - close)) * 100 <= reversalBarUpperTailPercentageInput
+        c4A := c4_priceCondition and c4_volumeCondition and c4_upperTailCondition and c4_newHighCondition
+        if c4A
+            log.info("Found c4A")
+            label.new(bar_index, high, "Sell (c4A)", style = label.style_label_down, color=color.yellow, size = size.normal)
+            // Ставим лимитный ордер на продажу - на 2 тика(минимальное движение цены) выше цена закрытия разворотной сечки.
+            // Если следующим баром продажа не происходит, отменяем.
+        else
+            log.info("C4A conditions {0}, {1}, {2}, {3}, {4}", c4_lowerQuarterCondition, c4_priceCondition, c4_volumeCondition, c4_upperTailCondition, c4_newHighCondition)
+
+    //Option B
+    if c3 and oppositeBar
+        c4_newHighCondition = high >= high[1]
+        c4_closeToBottomCondition = ((close - low)/(high - low)) * 100 <= reversalBarBottomClosePercentageInput
+        c4_priceCondition = ((high - low)/(high[1] - low[1])) * 100 <= reversalBarfromPreviousPercentageInput
+        c4_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput //volume > volume[1]
+        c4B := c4_newHighCondition and c4_closeToBottomCondition and c4_priceCondition and c4_volumeCondition
+        log.info("c4B conditions {0}, {1}, {2}, {3}", c4_newHighCondition, c4_closeToBottomCondition, c4_priceCondition, c4_volumeCondition)
+        if c4B
+            log.info("Found c4B")
+            label.new(bar_index, high, "Sell (c4B)", style = label.style_label_down, color=color.yellow, size = size.normal)
+        else
+            log.info("C4A conditions {0}, {1}, {2}, {3}", c4_newHighCondition, c4_closeToBottomCondition, c4_priceCondition, c4_volumeCondition)
+
+else if c2
+    log.info("trendBar[1] {0}, lowestCloseAfterC2 {1}, c2_open {2}, c2_index {3}", trendBar[1], lowestCloseAfterC2, c2_open, c2_index)
+
+// TODO Stop condition
+
+alertcondition(c4A or c4B, "Reversal 2C Short - Absorption by price and volume", "Reversal 2C Short has been spotted")
+// if not initiated
+plot(na, '', na)

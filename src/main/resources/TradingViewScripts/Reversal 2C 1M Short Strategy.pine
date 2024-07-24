@@ -1,0 +1,237 @@
+//@version=5
+strategy("Reversal 2C 1M Short Strategy", overlay = true, initial_capital=10000, default_qty_type = strategy.cash, default_qty_value = 100,  max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500)//commission_value=0.075
+
+//TODO check that it is a 1 minute chart
+
+htfInput = input.string("2", "HIgher timeframe for trend detection")
+
+trendBarsNumberInput = input.int(5, "Number of previous bars to compare with")
+trendLength = trendBarsNumberInput * 2
+
+barNumberFromTrendToReversalInput = input.int(10, "Number of bars allowed to wait from complete trend to reversal bar")
+
+rollbackPriceDropPercentageInput = input.float(30.0, "Trend breaking price drop percentage", tooltip = "(h1 - low)/(h1 - l1) > X%")
+thinBarPercentageInput = input.float(0.15, "Price change percentage to ignore as thin bar", tooltip = "(close - open)/open < X%")
+
+reversalBarUpperTailPercentageInput = input.float(30.0, "Reversal bar upper tail percentage of the body", tooltip = "(high - open)/(high - low) <= X%")
+reversalBarVolumeFromInput = input.float(100, "Reversal bar volume from previous bar lower boundary", tooltip = "volume / volume[1] >= X%")
+reversalBarVolumeToInput = input.float(200, "Reversal bar volume from previous bar upper boundary", tooltip = "volume / volume[1] <= X%")
+reversalBarBottomClosePercentageInput = input.float(5.0, "Opt B: Reversal bar close bottom percentage", tooltip = "close - low <= X%")
+reversalBarfromPreviousPercentageInput = input.float(50.0, "Opt B: Whole reversal bar percentage from previos bar", tooltip = "(high - low)/(high[1] - low[1]) <= X%")
+
+stopLossInput = input.float(1.0, "Take profit", tooltip = "Price movement percentage to close order")
+takeProfitInput = input.float(1.0, "Take profit", tooltip = "Price movement percentage to close order")
+timeAndDateInput = input.time(timestamp("01 Jan 2021 00:00"), "Date and time")
+barIsLater = time > timeAndDateInput
+
+//TODO exit when 20 consequent bars > sell price
+//barsAboveEntryToCancelInput = input.int(10, "Number of consequent bars closing above sell entry to cancel position")
+
+date(_time) =>
+    str.format("{0,time,dd HH:mm:ss}", _time)
+
+dates(_times) =>
+    result = ""
+    for _time in _times
+        result := result + "," + date(_time)
+    result
+
+countBarsSinceTime(_time) =>
+    int barsSinceTime = 0
+    timeCursor = time
+    while timeCursor > _time
+        barsSinceTime := barsSinceTime + 1
+        timeCursor := time[barsSinceTime]
+    barsSinceTime
+
+int htfCurrrent = int(str.tonumber(htfInput))
+
+type htfTuple
+    // float htfOpen
+    // float htfClose
+    // float htfVolume
+    float c2_high
+    float c2_low
+    int htfIndex
+    // bool oppositeBar
+    // bool trendBar
+    // int barsSinceRollback
+    // float trendBarsNumber
+    // float candleBody
+    bool c2
+    int c2_index
+    float c2_open
+    int c2_time
+    array<int> trend
+
+
+l1 = ta.lowest(low, trendLength)
+l1_offset = math.abs(ta.lowestbars(low, trendLength))
+highestLength = (na(l1_offset) or l1_offset <= 0) ? 1 : l1_offset
+h1 = ta.highest(high, highestLength)
+h1_offset = math.abs(ta.highestbars(high, highestLength))
+
+oppositeBar = open > close
+thinBar = not oppositeBar and ((close - open)/open) * 100 <= thinBarPercentageInput
+rollbackBar = oppositeBar and ((h1 - low)/(h1 - l1)) * 100 > rollbackPriceDropPercentageInput
+trendBar = not oppositeBar and not thinBar
+c4A = false
+c4B = false
+
+barsSinceRollback = nz(ta.barssince(rollbackBar))
+candleBody = close - open
+trendBarsNumber = math.sum(trendBar ? 1 : 0, math.min(trendLength, math.max(nz(barsSinceRollback), 1)))
+
+// get(source, index) =>
+//     offset = bar_index - index
+//     offset <= 0 ? source : source[offset]
+
+offset(index) =>
+    if  bar_index <= index
+        log.error("bar_index {0} less than index {1}", bar_index, index)
+        1
+    else
+        index <= 0 ? (bar_index <= 1 ? 1 : bar_index - 1) : bar_index - index
+
+drawBox(fromIndex, toIndex, bottom, top, txt) =>
+    label.new(fromIndex, top, text = txt, color=color.lime, style = label.style_label_lower_right, textcolor = color.black, size = size.small)
+    topLeft = chart.point.from_index(fromIndex, top)
+    bottomRight = chart.point.from_index(toIndex, bottom)
+    box.new(topLeft, bottomRight, color.teal, 2, line.style_dashed, bgcolor = color.new(color.teal, 80))
+
+
+//@variable Returns `color.green` when the strategy places the "buy" order, `color.orange` when it cancels the order.
+color bgColor = na
+//@variable Stop-loss price for exit commands.
+var float stopLoss = na
+//@variable Take-profit price for exit commands.
+var float takeProfit = na
+var float limitPrice = na
+sellSignal = false
+var int signalCount = 0
+
+c2 = false
+c2_index = 0
+float c2_open = na
+float c2_high = na
+float c2_low = na
+int c2_time = na
+array<int> trend = array.new<int>()
+for i = 1 to barNumberFromTrendToReversalInput by 1
+
+    if barsSinceRollback[i] > trendBarsNumberInput and trendBarsNumber[i] >= trendBarsNumberInput
+        counter = trendLength
+        sum = 0.0
+        count = 0
+        trendBarAvg = while counter > 0
+            offset = i + 1 + trendLength - counter
+            if trendBar[offset]
+                sum := sum + candleBody[offset]
+                count := count + 1
+                trend.push(time[offset])
+            counter := counter - 1
+            if count >= trendBarsNumberInput
+                break
+            sum / count
+
+        c2_avgCondition = candleBody[i] >= trendBarAvg
+        //log.info("trendBarAvg {0}, {1}", trendBarAvg, candleBody[1])
+        c2_upperThirdCondition = ((high[i] - close[i])/(high[i] - low[i])) * 100 <= 30
+        c2 := c2_avgCondition and c2_upperThirdCondition
+        if c2
+            //log.info("Found c2, sum {0}, count {1}", math.sum(trendBar[1] ? candleBody[1] : 0, trendBarsNumberInput), math.sum(trendBar[1] ? 1 : 0, trendBarsNumberInput))
+            //label.new(bar_index[i], high[i], "c2", style = label.style_label_down, color=color.gray, size = size.tiny)
+            c2_index := bar_index[i]
+            log.info("c2 {0}, at {1}", c2, date(time[i]))
+            c2_open := open[i]
+            c2_high := high[i]
+            c2_low := low[i]
+            c2_time := time[i]
+            break
+
+htfTuple htfMetrics = request.security(syminfo.tickerid, htfInput, htfTuple.new(c2_high, c2_low, bar_index, c2, c2_index, c2_open, c2_time, trend)[1], lookahead = barmerge.lookahead_on)
+if na(htfMetrics)
+    htfMetrics := htfTuple.new()
+//close[1] or close?
+lowestCloseAfterC2 = ta.lowest(close, math.max(countBarsSinceTime(htfMetrics.c2_time), 1))
+
+//there is a c2 candle in the htf
+ltfC2 = ta.highest(htfMetrics.c2 ? 1 : 0, barNumberFromTrendToReversalInput) == 1
+// if ltfC2
+//     log.info("htfMetrics {0}, {1}, {2}", date(htfMetrics.c2_time), htfMetrics.c2_index, countBarsSinceTime(htfMetrics.c2_time))
+//     log.info("htfMetrics.trend {0}", dates(htfMetrics.trend))
+
+
+if ltfC2 and trendBar[1] and lowestCloseAfterC2 >= htfMetrics.c2_open
+    barsSinceC2 = countBarsSinceTime(htfMetrics.c2_time)
+    c3 = true
+    //label.new(bar_index[1], high[1], "c3", style = label.style_label_down, color=color.green, size = size.small)
+    //log.info("c3 {0} at {1}, since c2 {2} bars {3}", c3, date(time[1]), date(htfMetrics.c2_time), barsSinceC2)
+
+    limitPrice := close + syminfo.mintick * 2
+    stopLoss := math.min(high + (high - low), high * (1 + stopLossInput/100)) //TODO -> limitPrice * (1 + stopLossInput/100)) ?
+    takeProfit := close * (1 - takeProfitInput/100)
+
+    //Option A
+    if c3 and oppositeBar
+        c4_newHighCondition = high >= high[1]
+        c4_lowerQuarterCondition = ((close - low)/(high - low)) * 100 <=  25
+        c4_priceCondition = high > high[1] and c4_lowerQuarterCondition and close <= open[1]
+        c4_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumeFromInput and (volume / volume[1]) * 100 <= reversalBarVolumeToInput
+        c4_upperTailCondition = ((high - open)/(high - low)) * 100 <= reversalBarUpperTailPercentageInput
+        c4A := c4_priceCondition and c4_volumeCondition and c4_upperTailCondition and c4_newHighCondition
+        if c4A
+            log.info("Found c4A, limitPrice {0}, {1}, {2}", limitPrice, takeProfit, stopLoss)
+            label.new(bar_index, high, "Sell (c4A)", style = label.style_label_down, color=color.yellow, size = size.normal)
+
+            //log.info("drawbox {0}, {1}", barsSinceC2, date(htfMetrics.c2_time))
+            drawBox(bar_index - barsSinceC2 -1, bar_index - barsSinceC2 + int(htfCurrrent * 1) -1, htfMetrics.c2_low, htfMetrics.c2_high, str.format("C2 {0}min", htfCurrrent))
+
+            signalCount := signalCount + 1
+            signalId = str.format("sell{0}", signalCount)
+            strategy.entry(signalId, strategy.short, limit = limitPrice)
+            strategy.exit("exit" + signalId, signalId, stop = stopLoss, limit = takeProfit)
+            sellSignal := true
+        else
+            log.info("C4A conditions {0}, {1}, {2}, {3}, {4}", c4_lowerQuarterCondition, c4_priceCondition, c4_volumeCondition, c4_upperTailCondition, c4_newHighCondition)
+
+    //Option B
+    if c3 and oppositeBar
+        c4_newHighCondition = high >= high[1]
+        c4_closeToBottomCondition = ((close - low)/(high - low)) * 100 <= reversalBarBottomClosePercentageInput
+        c4_priceCondition = ((high - low)/(high[1] - low[1])) * 100 <= reversalBarfromPreviousPercentageInput
+        c4_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumeFromInput and (volume / volume[1]) * 100 <= reversalBarVolumeToInput
+        c4B := c4_newHighCondition and c4_closeToBottomCondition and c4_priceCondition and c4_volumeCondition
+        if c4B
+            log.info("Found c4B, limitPrice {0}, {1}, {2}", limitPrice, takeProfit, stopLoss)
+            label.new(bar_index, high, "Sell (c4B)", style = label.style_label_down, color=color.yellow, size = size.normal)
+
+            //log.info("drawbox {0}, {1}", barsSinceC2, date(htfMetrics.c2_time))
+            drawBox(bar_index - barsSinceC2 -1, bar_index - barsSinceC2 + int(htfCurrrent * 1) -1, htfMetrics.c2_low, htfMetrics.c2_high, str.format("C2 {0}min", htfCurrrent))
+
+            signalCount := signalCount + 1
+            signalId = str.format("sell{0}", signalCount)
+            strategy.entry(signalId, strategy.short, limit = limitPrice)
+            strategy.exit("exit" + signalId, signalId, stop = stopLoss, limit = takeProfit)
+            sellSignal := true
+        else
+            log.info("C4B conditions {0}, {1}, {2}, {3}", c4_newHighCondition, c4_closeToBottomCondition, c4_priceCondition, c4_volumeCondition)
+
+else if c2
+    log.info("trendBar[1] {0}, lowestCloseAfterC2 {1}, c2_open {2}, c2_index {3}", trendBar[1], lowestCloseAfterC2, c2_open, c2_index)
+
+// Если следующим баром продажа не происходит, отменяем.
+if sellSignal[1] == true and (high < limitPrice or low > limitPrice)
+    strategy.cancel("sell")
+    label.new(bar_index, low, "cancel", style = label.style_label_up, color=color.yellow, size = size.normal)
+    //bgColor := color.new(color.orange, 50)
+
+
+// Set `stopLoss` and `takeProfit` to `na` when price touches either, i.e., when the strategy simulates an exit.
+if low <= stopLoss or high >= takeProfit
+    stopLoss   := na
+    takeProfit := na
+
+//strategy.close_all()
+// bgcolor(bgColor)
+

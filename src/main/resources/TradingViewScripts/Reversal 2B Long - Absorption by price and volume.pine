@@ -1,0 +1,86 @@
+//@version=5
+indicator("Reversal 2B Long - Absorption by price and volume", overlay = true)
+
+trendBarsNumberInput = input.int(5, "Number of previous bars to compare with")
+trendLength = trendBarsNumberInput * 2
+
+rollbackPriceGrowthPercentageInput = input.float(30.0, "Trend breaking price growth percentage", tooltip = "(high - l1)/(h1 - l1) > X%")
+thinBarPercentageInput = input.float(0.15, "Price change percentage to ignore as thin bar", tooltip = "(open - close)/open < X%")
+
+reversalBarLowerTailPercentageInput = input.float(30.0, "Reversal bar lower tail percentage of the body", tooltip = "(open - low)/(close - open) <= X%")
+reversalBarVolumePercentageInput = input.float(100, "Reversal bar volume from previous bar lower boundary", tooltip = "volume / volume[1] >= X%")
+reversalBarTopClosePercentageInput = input.float(5.0, "Opt B: Reversal bar close top percentage", tooltip = "high - close <= X%")
+reversalBarfromPreviousPercentageInput = input.float(50.0, "Opt B: Whole reversal bar percentage from previos bar", tooltip = "(high - low)/(high[1] - low[1]) <= X%")
+
+
+h1 = ta.highest(high, trendLength)
+h1_offset = math.abs(ta.highestbars(high, trendLength))
+lowestLength = (na(h1_offset) or h1_offset <= 0) ? 1 : h1_offset
+l1 = ta.lowest(low, lowestLength)
+l1_offset = math.abs(ta.lowestbars(low, lowestLength))
+
+
+oppositeBar = close > open
+thinBar = not oppositeBar and ((open - close)/open) * 100 <= thinBarPercentageInput
+rollbackBar = oppositeBar and ((high - l1)/(h1 - l1)) * 100 > rollbackPriceGrowthPercentageInput
+trendBar = not oppositeBar and not thinBar
+c3A = false
+c3B = false
+
+barsSinceRollback = nz(ta.barssince(rollbackBar))
+candleBody = open - close
+// plot(trendBar? candleBody: na, title = "candleBody")
+// plot(barsSinceRollback, title = "barsSinceRollback")
+
+if barsSinceRollback[1] > trendBarsNumberInput and math.sum(trendBar[1] ? 1 : 0, math.min(trendLength, math.max(nz(barsSinceRollback[1]), 1))) >= trendBarsNumberInput
+
+    counter = trendLength
+    sum = 0.0
+    count = 0
+    trendBarAvg = while counter > 0
+        offset = 2 + trendLength - counter
+        if trendBar[offset]
+            sum := sum + candleBody[offset]
+            count := count + 1
+        counter := counter - 1
+        if count >= trendBarsNumberInput
+            break
+        sum / count
+
+    c2_avgCondition = candleBody[1] >= trendBarAvg
+    c2_lowerThirdCondition = ((close[1] - low[1])/(high[1] - low[1])) * 100 <= 30
+    c2 = c2_avgCondition and c2_lowerThirdCondition
+    if c2
+        //log.info("Found c2, sum {0}, count {1}", math.sum(trendBar[1] ? candleBody[1] : 0, trendBarsNumberInput), math.sum(trendBar[1] ? 1 : 0, trendBarsNumberInput))
+        label.new(bar_index[1], low[1], "c2", style = label.style_label_up, color=color.red, size = size.normal)
+
+    //Option A
+    if c2 and oppositeBar
+        c3_newLowCondition = low <= low[1]
+        c3_higherQuarterCondition = ((high - close)/(high - low)) * 100 <=  25
+        c3_priceCondition = low <= low[1] and c3_higherQuarterCondition and close >= open[1]
+        c3_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput
+        c3_lowerTailCondition = ((open - low)/(close - open)) * 100 <= reversalBarLowerTailPercentageInput
+        c3A := c3_priceCondition and c3_volumeCondition and c3_lowerTailCondition and c3_newLowCondition
+        log.info("C3A conditions {0}, {1}, {2}, {3}, {4}", c3_higherQuarterCondition, c3_priceCondition, c3_volumeCondition, c3_lowerTailCondition, c3_newLowCondition)
+        if c3A
+            log.info("Found c3A Long")
+            label.new(bar_index, low, "Buy (c3A)", style = label.style_label_up, color=color.yellow, size = size.normal)
+            //TODO put buying order
+
+    //Option B
+    if c2 and oppositeBar
+        c3_newLowCondition = low <= low[1]
+        c3_closeToTopCondition = ((high - close)/(high - low)) * 100 <= reversalBarTopClosePercentageInput
+        c3_priceCondition = ((high - low)/(high[1] - low[1])) * 100 <= reversalBarfromPreviousPercentageInput
+        c3_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput
+        c3B := c3_newLowCondition and c3_closeToTopCondition and c3_priceCondition and c3_volumeCondition
+        log.info("c3B conditions {0}, {1}, {2}, {3}", c3_newLowCondition, c3_closeToTopCondition, c3_priceCondition, c3_volumeCondition)
+        if c3B
+            log.info("Found c3B Long")
+            label.new(bar_index, low, "Buy (c3B)", style = label.style_label_up, color=color.yellow, size = size.normal)
+// TODO Stop condition
+
+alertcondition(c3A or c3B, "Reversal 2B Long - Absorption by price and volume", "Reversal 2B Long has been spotted")
+// if not initiated
+// plot(na, '', na)

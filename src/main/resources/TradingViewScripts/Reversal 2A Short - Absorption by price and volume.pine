@@ -1,0 +1,96 @@
+//@version=5
+
+// Пререквизит: движение от 5 баров, незначительные отклонения вниз можно пропускать (откаты не более 30% )
+// (h1 - current low / h1 - l1) <= 30%. Игнорировать тонкие свечки.
+indicator("Reversal 2A Short - Absorption by price and volume", overlay = true)
+
+trendBarsNumberInput = input.int(5, "Number of previous bars to compare with")
+trendLength = trendBarsNumberInput * 2
+
+rollbackPriceDropPercentageInput = input.float(30.0, "Trend breaking price drop percentage", tooltip = "(h1 - low)/(h1 - l1) > X%")
+thinBarPercentageInput = input.float(0.15, "Price change percentage to ignore as thin bar", tooltip = "(close - open)/open < X%")
+
+reversalBarUpperTailPercentageInput = input.float(30.0, "Reversal bar upper tail percentage of the body", tooltip = "(high - open)/(open - close) <= X%")
+reversalBarVolumePercentageInput = input.float(100, "Reversal bar volume from previous bar lower boundary", tooltip = "volume / volume[1] >= X%")
+reversalBarBottomClosePercentageInput = input.float(5.0, "Opt B: Reversal bar close bottom percentage", tooltip = "close - low <= X%")
+reversalBarfromPreviousPercentageInput = input.float(50.0, "Opt B: Whole reversal bar percentage from previos bar", tooltip = "(high - low)/(high[1] - low[1]) <= X%")
+
+
+l1 = ta.lowest(low, trendLength)
+l1_offset = math.abs(ta.lowestbars(low, trendLength))
+highestLength = (na(l1_offset) or l1_offset <= 0) ? 1 : l1_offset
+h1 = ta.highest(high, highestLength)
+h1_offset = math.abs(ta.highestbars(high, highestLength))
+
+oppositeBar = open > close
+thinBar = not oppositeBar and ((close - open)/open) * 100 <= thinBarPercentageInput
+rollbackBar = oppositeBar and ((h1 - low)/(h1 - l1)) * 100 > rollbackPriceDropPercentageInput
+trendBar = not oppositeBar and not thinBar
+c3A = false
+c3B = false
+
+barsSinceRollback = nz(ta.barssince(rollbackBar))
+candleBody = close - open
+// plot(trendBar? candleBody: na, title = "candleBody")
+// plot(barsSinceRollback, title = "barsSinceRollback")
+
+if barsSinceRollback[1] > trendBarsNumberInput and math.sum(trendBar[1] ? 1 : 0, math.min(trendLength, math.max(nz(barsSinceRollback[1]), 1))) >= trendBarsNumberInput
+
+    //Ищем C2, ее тело(close - open) не меньше, чем среднее тело предыдущих 5, закрывается в верхней трети: (high - close/ high - low) <= 30%.
+    //c2_avgCondition = candleBody[1] >= (math.sum(trendBar[1] ? candleBody[1] : 0, trendBarsNumberInput)/math.sum(trendBar[1] ? 1 : 0, trendBarsNumberInput))
+    counter = trendLength
+    sum = 0.0
+    count = 0
+    trendBarAvg = while counter > 0
+        offset = 2 + trendLength - counter
+        if trendBar[offset]
+            sum := sum + candleBody[offset]
+            count := count + 1
+        counter := counter - 1
+        if count >= trendBarsNumberInput
+            break
+        sum / count
+
+    c2_avgCondition = candleBody[1] >= trendBarAvg
+    //log.info("trendBarAvg {0}, {1}", trendBarAvg, candleBody[1])
+    c2_upperThirdCondition = ((high[1] - close[1])/(high[1] - low[1])) * 100 <= 30
+    c2 = c2_avgCondition and c2_upperThirdCondition
+    if c2
+        //log.info("Found c2, sum {0}, count {1}", math.sum(trendBar[1] ? candleBody[1] : 0, trendBarsNumberInput), math.sum(trendBar[1] ? 1 : 0, trendBarsNumberInput))
+        label.new(bar_index[1], h1, "c2", style = label.style_label_down, color=color.green, size = size.normal)
+
+    //Option A
+    if c2 and oppositeBar
+        // Ищем текущую - C3, разворотная, ее high >= prev high (C2 high), закрывается внизу (close - low в нижней четверти),  (close c3 <= open c2).
+        // Volume c3 > volume c2. (или >= 101% от volume c2).
+        // Хвост C3 не должен быть большим, не больше 30% тела.
+        c3_newHighCondition = high >= high[1]
+        c3_lowerQuarterCondition = ((close - low)/(high - low)) * 100 <=  25
+        c3_priceCondition = high > high[1] and c3_lowerQuarterCondition and close <= open[1]
+        c3_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput //volume > volume[1]
+        c3_upperTailCondition = ((high - open)/(open - close)) * 100 <= reversalBarUpperTailPercentageInput
+        c3A := c3_priceCondition and c3_volumeCondition and c3_upperTailCondition and c3_newHighCondition
+        log.info("C3A conditions {0}, {1}, {2}, {3}, {4}", c3_lowerQuarterCondition, c3_priceCondition, c3_volumeCondition, c3_upperTailCondition, c3_newHighCondition)
+        if c3A
+            log.info("Found c3A")
+            label.new(bar_index, high, "Sell (c3A)", style = label.style_label_down, color=color.yellow, size = size.normal)
+            // Ставим лимитный ордер на продажу - на 2 тика(минимальное движение цены) выше цена закрытия разворотной сечки.
+            // Если следующим баром продажа не происходит, отменяем.
+
+    //Option B
+    if c2 and oppositeBar
+        //Ищем текущую - C3, разворотная, перехай (high >= prev high (C2 high)), закрыться внизу (close - low <= 5% от high - low) и вся она high - low <= 50% (C2 high - C2 low). Объем C3 >= C2.
+        c3_newHighCondition = high >= high[1]
+        c3_closeToBottomCondition = ((close - low)/(high - low)) * 100 <= reversalBarBottomClosePercentageInput
+        c3_priceCondition = ((high - low)/(high[1] - low[1])) * 100 <= reversalBarfromPreviousPercentageInput
+        c3_volumeCondition = (volume / volume[1]) * 100 >= reversalBarVolumePercentageInput //volume > volume[1]
+        c3B := c3_newHighCondition and c3_closeToBottomCondition and c3_priceCondition and c3_volumeCondition
+        log.info("c3B conditions {0}, {1}, {2}, {3}", c3_newHighCondition, c3_closeToBottomCondition, c3_priceCondition, c3_volumeCondition)
+        if c3B
+            log.info("Found c3B")
+            label.new(bar_index, high, "Sell (c3B)", style = label.style_label_down, color=color.yellow, size = size.normal)
+// TODO Stop condition
+
+alertcondition(c3A or c3B, "Reversal 2A Short - Absorption by price and volume", "Reversal 2A Short has been spotted")
+// if not initiated
+plot(na, '', na)

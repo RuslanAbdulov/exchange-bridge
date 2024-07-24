@@ -1,0 +1,34 @@
+//@version=5
+indicator("High internal volume", overlay = true, format = format.volume)
+
+//inputs
+string ltf_input = input.timeframe("1S", title="Lower Timeframe", options=['1S', '5S', '10S', '15S', '30S', '1', '3', '5'])
+int threshold_input = input.int(5000, title="Amount of contracts")
+indicator_color_input = input.color(color.yellow, title="Indicator color")
+price_bar_color_input = input.color(color.purple, title="Price bar color")
+
+
+[ltfVolume, ltfOpen] = request.security_lower_tf(syminfo.tickerid, ltf_input, [volume, open])
+maxVolume = array.max(ltfVolume)
+maxVolumeIdx = array.indexof(ltfVolume, maxVolume)
+
+ltfMaxVolumeOpenPrice = maxVolumeIdx > -1 ? array.get(ltfOpen, maxVolumeIdx) : na
+//log.info("Max 1s vol {0}, htf_vol ", maxVolume, volume)
+
+markedCandle = maxVolume > threshold_input
+barcolor(markedCandle ? indicator_color_input : na)
+plotshape(markedCandle, style=shape.labeldown, color = indicator_color_input, size = size.normal)
+plotchar(markedCandle ? ltfMaxVolumeOpenPrice : na, char = "——", color = price_bar_color_input, location = location.absolute, size = size.normal)
+
+
+// alternative way to draw a line
+// firstPoint = chart.point.now(ltfMaxVolumeOpenPrice)
+// secondPoint = chart.point.from_index(bar_index + 1, ltfMaxVolumeOpenPrice)
+// var line mainLine = na
+// if markedCandle
+//     mainLine := markedCandle? line.new(firstPoint, secondPoint, color = color.purple, width = 2) : na
+
+
+//plot(series = ltfMaxVolumeOpenPrice, color = markedCandle ? color.black : na, style = plot.style_steplinebr)
+
+alertcondition(markedCandle, "High internal volume", "High internal volume has been spotted")

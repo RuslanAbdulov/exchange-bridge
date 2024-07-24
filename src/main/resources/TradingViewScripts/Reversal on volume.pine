@@ -1,0 +1,390 @@
+/@version=5
+indicator("Reversal on Volume from Top", overlay = true)
+
+//TODO calc as now - 1 month
+timeAndDateInput = input.time(timestamp("01 Feb 2024 00:00"), "Date and time")
+barIsLater = time > timeAndDateInput
+//barIsLater = time > timeAndDateInput and time <= timestamp("19 Feb 2024 00:00")
+
+priceGrowthPercentageInput = input.float(1.0, "Required price groth percentage")
+priceDropPercentageInput = input.float(30.0, "Indicative price drop percentage")
+
+//see Zig Zag High Low
+pivotDeltaLengthInput = input.int(4, "Pivot delta length")
+//TODO revert? pivotLength = pivotDeltaLengthInput * 2 + 1
+pivotLength = pivotDeltaLengthInput + 1
+
+atypicalBarCompareBackInput = input.int(10, "Number of bars to compare atypical bar with")
+atypicalBarCloseHighDiffInput = input.float(3.0, "Atypical bar allowance for difference between high and close")
+priceRetracementPercentageInout = input.float(15.0, "Price retracement percentage allowed right after atypical bar")
+
+confirmationBarCloseHighDiffInput = input.float(5.0, "Confirmation bar allowance for difference between high and close")
+confirmationBarVolumePercentFromAtypicalBarInput = input.float(80.0, "Percentage of Atipical bar volume that confirmation bar is allowed to have")
+afterConfirmationBarCloseLowDiffInput = input.float(5.0, "Allowance for difference between close and low right after confirmation bar")
+
+atypicalBarWaitInput = input.int(15, "Wait for atypical bar limit")
+confirmationBarWaitInput = input.int(10, "Wait for confirmation bar limit")
+//confirmationBarFluctuationInput = input.float(40.0, "Allowed fluctuation after atypical and before confirmation bars")
+
+
+const int LOCAL_HIGH_STEP = 0
+const int FIRST_GROWTH_STEP = 1
+const int SECOND_GROWTH_STEP = 2
+const int THIRD_GROWTH_STEP = 3
+const int ATYPICAL_BAR_STEP = 4
+const int CONFIRMATION_BAR_STEP = 5
+//@variable 0 - looking for local high (h0); 1,2,3 - dectect growing trends; 4 - looking for atypical bar; 5 - final indictor bar
+var int step = 0
+
+// var initiated = false
+var float initlLocalHigh = na //(h0)
+var initlLocalHighIndex = 0
+var float firstLow = na //(l1)
+var firstLowIndex = 0
+var float firstHigh = na //(h1)
+var firstHighIndex = 0
+var float secondLow = na //(l2)
+var secondLowIndex = 0
+var float secondHigh = na //(h2)
+var secondHighIndex = 0
+//skip third step
+// var float thirdLow = na //(l3)
+// var thirdLowIndex = 0
+// var float thirdHigh = na //(h3)
+// var thirdHighIndex = 0
+var float atypicalBarClose = na //(c4)
+var atypicalBarIndex = 0
+var float confirmationBarClose = na //(c5)
+var confirmationBarIndex = 0
+
+nextStep() =>
+    log.info("switching step from {0} to {1}", step, (step + 1) % 6)
+    if step < 5
+        //skip third step
+        if (step == SECOND_GROWTH_STEP)
+            step + 2
+        else
+            step + 1
+    else //reset
+        0
+
+findSecondHighestValue(src, numBarsBack, excludeHighest) =>
+    if bar_index > numBarsBack
+        float secondHighest = 0
+        for i = 1 to numBarsBack - 1
+            if src[i] > secondHighest and src[i] != excludeHighest
+                secondHighest := src[i]
+        secondHighest
+    else
+        0
+
+alert = false
+h = ta.highest(high, pivotLength)
+//hBar = ta.highestbars(high, pivotLength)
+pl = ta.pivotlow(pivotLength, pivotLength)
+hl = ta.pivothigh(pivotLength, pivotLength)
+// plot(pl, title="pivotlow", color=na, style=plot.style_histogram)
+
+//Тело (проход) больше на 10% и объем на 30% больше, чем предыдущие 10 свечек
+highestBodyIn10 = ta.highest(close - open, atypicalBarCompareBackInput)
+highestVolumeIn10 = ta.highest(volume, atypicalBarCompareBackInput)
+secondHighestBodyIn10 = findSecondHighestValue(close - open, atypicalBarCompareBackInput, highestBodyIn10)
+secondHighestVolumeIn10 = findSecondHighestValue(volume, atypicalBarCompareBackInput, highestVolumeIn10)
+plot(highestBodyIn10, title="highestBodyIn10", color=na, style=plot.style_histogram)
+plot(secondHighestBodyIn10, title="secondHighestBodyIn10", color=na, style=plot.style_histogram)
+plot(highestVolumeIn10, title="highestVolumeIn10", color=na, style=plot.style_histogram)
+plot(secondHighestVolumeIn10, title="secondHighestVolumeIn10", color=na, style=plot.style_histogram)
+
+if barIsLater
+    changeStep = false
+    reset = false
+
+    //0 start
+    if step == LOCAL_HIGH_STEP //not initiated //bar_index >= initDeltaLength * 2
+        //if h == high[pivotLength]
+        if not na(hl[pivotDeltaLengthInput])
+            initlLocalHigh := hl[pivotDeltaLengthInput]
+            initlLocalHighIndex := bar_index[pivotLength + pivotDeltaLengthInput]
+            // initiated := true
+            label.new(initlLocalHighIndex, initlLocalHigh, "h0", style = label.style_label_down, color=color.yellow, size = size.normal)
+            //line.new(initlLocalHighIndex, initlLocalHigh, initlLocalHighIndex, initlLocalHigh * 1.01, extend = extend.both, color = color.purple, style = line.style_solid, width = 3)
+            log.info("found h0 on {0}", initlLocalHighIndex)
+            changeStep := true
+    //0 end
+
+    //1 start
+    if step == FIRST_GROWTH_STEP
+        if not na(pl[pivotDeltaLengthInput]) and na(firstLow) and bar_index[pivotLength + pivotDeltaLengthInput] > initlLocalHighIndex
+            firstLow := pl[pivotDeltaLengthInput]
+            firstLowIndex := bar_index[pivotLength + pivotDeltaLengthInput]
+            log.info("l1, pl in {0}", firstLowIndex)
+            label.new(firstLowIndex, firstLow, "l1", style = label.style_label_up, color=color.red, size = size.normal)
+        else if not na(pl) and na(firstLow)
+            firstLow := pl
+            firstLowIndex := bar_index[pivotLength]
+            log.info("l1, pl in current bar {0}, value {1}", firstLowIndex, firstLow)
+            label.new(firstLowIndex, firstLow, "l1", style = label.style_label_up, color=color.red, size = size.normal)
+
+        var float potentialHigh = na
+        var int potentialHighIndex = 0
+        var bool dropAfterPotentialHigh = false
+        if not na(firstLow)
+            if high > initlLocalHigh
+                growthPercentage = ((high - initlLocalHigh) / initlLocalHigh) * 100
+                //log.info("growthPercentage {0} in current bar {1}", growthPercentage, bar_index)
+                if growthPercentage > priceGrowthPercentageInput and high >= nz(potentialHigh)
+                    potentialHigh := high
+                    potentialHighIndex := bar_index
+                    //log.info("potentialHigh {0} in current bar {1}", potentialHigh, bar_index)
+
+            priceDrop = na(potentialHigh) ? na : ((potentialHigh - low)/(potentialHigh - firstLow)) * 100
+            if not na(potentialHigh) and priceDrop > priceDropPercentageInput
+                dropAfterPotentialHigh := true
+
+            if not na(potentialHigh) and dropAfterPotentialHigh and bar_index - potentialHighIndex > 5
+                firstHigh := potentialHigh
+                firstHighIndex := potentialHighIndex
+                potentialHigh := na
+                potentialHighIndex := 0
+                dropAfterPotentialHigh := false
+                log.info("h1 in current bar {0}, value {1}", firstHighIndex, str.tostring(firstHigh, format.mintick))
+                label.new(firstHighIndex, firstHigh, "h1", style = label.style_label_down, color=color.green, size = size.normal)
+                changeStep := true
+
+            if low < firstLow
+                log.info("Below low, reset in current bar {0}, value {1}", firstLowIndex, low)
+                label.new(bar_index, low, "Reset", style = label.style_label_up, color=color.yellow, size = size.small)
+                potentialHigh := na
+                potentialHighIndex := 0
+                dropAfterPotentialHigh := false
+                reset := true
+    //1 end
+
+    //2 start
+    if step == SECOND_GROWTH_STEP
+        if not na(pl[pivotDeltaLengthInput]) and na(secondLow) and bar_index[pivotLength + pivotDeltaLengthInput] > firstHighIndex
+            secondLow := pl[pivotDeltaLengthInput]
+            secondLowIndex := bar_index[pivotLength + pivotDeltaLengthInput]
+            log.info("l2, pl in {0}", secondLowIndex)
+            label.new(secondLowIndex, secondLow, "l2", style = label.style_label_up, color=color.red, size = size.normal)
+        else if not na(pl) and na(secondLow)
+            secondLow := pl
+            secondLowIndex := bar_index[pivotLength]
+            log.info("l2, pl in current bar {0}, value {1}", secondLowIndex, secondLow)
+            label.new(secondLowIndex, secondLow, "l2", style = label.style_label_up, color=color.red, size = size.normal)
+
+        var float potentialHigh = na
+        var int potentialHighIndex = 0
+        var bool dropAfterPotentialHigh = false
+        if not na(secondLow)
+            if high > firstHigh
+                growthPercentage = ((high - firstHigh) / firstHigh) * 100
+                //log.info("growthPercentage {0} in bar {1}", growthPercentage, bar_index)
+                if growthPercentage > priceGrowthPercentageInput and high >= nz(potentialHigh)
+                    potentialHigh := high
+                    potentialHighIndex := bar_index
+                    //log.info("potentialHigh {0} in bar {1}", potentialHigh, bar_index)
+
+            priceDrop = na(potentialHigh) ? na : ((potentialHigh - low)/(potentialHigh - secondLow)) * 100
+            if not na(potentialHigh) and priceDrop > priceDropPercentageInput
+                dropAfterPotentialHigh := true
+
+            if not na(potentialHigh) and dropAfterPotentialHigh and bar_index - potentialHighIndex > 5
+                secondHigh := potentialHigh
+                secondHighIndex := potentialHighIndex
+                potentialHigh := na
+                potentialHighIndex := 0
+                dropAfterPotentialHigh := false
+                log.info("h2 in bar {0}, value {1}", secondHighIndex, secondHigh)
+                label.new(secondHighIndex, secondHigh, "h2", style = label.style_label_down, color=color.green, size = size.normal)
+                changeStep := true
+
+            if low < secondLow
+                log.info("Below low, reset in bar {0}, value {1}", secondLowIndex, low)
+                label.new(bar_index, low, "Reset", style = label.style_label_up, color=color.yellow, size = size.small)
+                potentialHigh := na
+                potentialHighIndex := 0
+                dropAfterPotentialHigh := false
+                reset := true
+    //2 end
+
+    //3 start
+    //skip third step
+    // if step == THIRD_GROWTH_STEP
+    //     if not na(pl[pivotDeltaLengthInput]) and na(thirdLow) and bar_index[pivotLength + pivotDeltaLengthInput] > secondHighIndex
+    //         thirdLow := pl[pivotDeltaLengthInput]
+    //         thirdLowIndex := bar_index[pivotLength + pivotDeltaLengthInput]
+    //         log.info("l3, pl in {0}", time[bar_index - thirdLowIndex])
+    //         label.new(thirdLowIndex, thirdLow, "l3", style = label.style_label_up, color=color.red, size = size.normal)
+    //     else if not na(pl) and na(thirdLow)
+    //         thirdLow := pl
+    //         thirdLowIndex := bar_index[pivotLength]
+    //         log.info("l3, pl in current bar {0}, value {1}", time[bar_index - thirdLowIndex], thirdLow)
+    //         label.new(thirdLowIndex, thirdLow, "l3", style = label.style_label_up, color=color.red, size = size.normal)
+
+    //     var float potentialHigh = na
+    //     var int potentialHighIndex = 0
+    //     var bool dropAfterPotentialHigh = false
+    //     if not na(thirdLow)
+    //         if high > secondHigh
+    //             growthPercentage = ((high - secondHigh) / secondHigh) * 100
+    //             //log.info("growthPercentage {0} in bar {1}", growthPercentage, bar_index)
+    //             if growthPercentage > priceGrowthPercentageInput and high >= nz(potentialHigh)
+    //                 potentialHigh := high
+    //                 potentialHighIndex := bar_index
+    //                 //log.info("potentialHigh {0} in bar {1}", potentialHigh, bar_index)
+
+    //         priceDrop = na(potentialHigh) ? na : ((potentialHigh - low)/(potentialHigh - thirdLow)) * 100
+    //         if not na(potentialHigh) and priceDrop > priceDropPercentageInput
+    //             dropAfterPotentialHigh := true
+
+    //         if not na(potentialHigh) and dropAfterPotentialHigh and bar_index - potentialHighIndex > 5
+    //             thirdHigh := potentialHigh
+    //             thirdHighIndex := potentialHighIndex
+    //             potentialHigh := na
+    //             potentialHighIndex := 0
+    //             dropAfterPotentialHigh := false
+    //             log.info("h3 in bar {0}, value {1}", thirdHighIndex, thirdHigh)
+    //             label.new(thirdHighIndex, thirdHigh, "h3", style = label.style_label_down, color=color.green, size = size.normal)
+    //             changeStep := true
+
+    //         if low < thirdLow
+    //             log.info("Below low, reset in bar {0}, value {1}", thirdLowIndex, low)
+    //             label.new(bar_index, low, "Reset", style = label.style_label_up, color=color.yellow, size = size.small)
+    //             potentialHigh := na
+    //             potentialHighIndex := 0
+    //             dropAfterPotentialHigh := false
+    //             reset := true
+
+    //3 end
+
+    //4 start
+    if step == ATYPICAL_BAR_STEP
+        var float potentialAtypicalBarClose = na
+        var int potentialAtypicalBarIndex = 0
+        //(close ~= high), candle body and volume are the biggest among the last 10 bars
+        //TODO original condition: close выше третьего пика тренда (h3). Should be close > thirdHigh instead of math.abs((close - thirdHigh)/thirdHigh) * 100 <= 2
+        closeNearHigh = ((high - close)/close) * 100 <= atypicalBarCloseHighDiffInput
+        //Тело (проход) больше на 10% и объем на 30% больше, чем предыдущие 10 свечек
+        borderConditions = ((highestBodyIn10 - secondHighestBodyIn10)/(secondHighestBodyIn10) * 100) >= 10 and ((highestVolumeIn10 - secondHighestVolumeIn10)/(secondHighestVolumeIn10) * 100) >= 30
+        //skip third step
+        //log.info("step 4, {0}, {1}, {2}, {3}", closeNearHigh, borderConditions, math.abs((close - thirdHigh)/thirdHigh) * 100, (close - open))
+        //if high > thirdHigh and closeNearHigh and (close - open) == highestBodyIn10 and volume == highestVolumeIn10 and borderConditions
+        if high > secondHigh and closeNearHigh and (close - open) == highestBodyIn10 and volume == highestVolumeIn10 and borderConditions
+            potentialAtypicalBarClose := close
+            potentialAtypicalBarIndex := bar_index
+            log.info("potentialAtypicalBarClose {0}, potentialAtypicalBarIndex {1}, bar_index {2} ", potentialAtypicalBarClose, potentialAtypicalBarIndex, bar_index)
+        if not na(potentialAtypicalBarClose) and bar_index == potentialAtypicalBarIndex + 1
+            // Price retracement after atypical bar cannot exceed 15% of its (close - open).
+            if ((close[1] - close)/(close[1] - open[1])) * 100 < priceRetracementPercentageInout
+                atypicalBarClose := potentialAtypicalBarClose
+                atypicalBarIndex := potentialAtypicalBarIndex
+                log.info("c4 atypical bar {0}, value {1}", atypicalBarIndex, atypicalBarClose)
+                label.new(atypicalBarIndex, atypicalBarClose, "c4", style = label.style_label_down, color=color.gray, size = size.normal)
+                changeStep := true
+            else
+                label.new(bar_index, close, "Reset", style = label.style_label_up, color=color.yellow, size = size.small)
+                potentialAtypicalBarClose := na
+                potentialAtypicalBarIndex := 0
+                reset := true
+
+        //wait no longer than atypicalBarWaitInput bars
+        //skip third step
+        // if low < thirdLow or bar_index - thirdHighIndex > atypicalBarWaitInput
+        if low < secondLow or bar_index - secondHighIndex > atypicalBarWaitInput
+            log.info("Below low, reset in bar {0}, value {1}", bar_index, low)
+            log.info("Below low or too far, reset, index {0} potentialAtypicalBarIndex {1}", bar_index, potentialAtypicalBarIndex)
+            label.new(bar_index, low, "Reset 4", style = label.style_label_up, color=color.yellow, size = size.small)
+            potentialAtypicalBarClose := na
+            potentialAtypicalBarIndex := 0
+            reset := true
+        // else
+        //     log.info("Step 4 branch 4, should not be here, bar_index {0}", bar_index)
+
+    //4 end
+
+
+    //Допускаем движение цены, ищем свечку (c5) 20:00 - объем не больше, чем 80% свечки (с4).
+    //По форме должна закрыться на верхушке, то есть close = high (допустимую разницу задать параметром).
+    //Close свечки (c5) должен быть больше свечки (c4).
+
+    //5 start
+    if step == CONFIRMATION_BAR_STEP
+        var float potentialConfirmationBarClose = na
+        var int potentialConfirmationBarIndex = 0
+
+       // Свечка (6) - следующая (или через одну) high (6) > high (5), закрывается внизу, то есть close - low <= 5% от (high - low) и ее объем должен быть больше чем свечка (5).
+        if not na(potentialConfirmationBarClose)
+            offset = bar_index - potentialConfirmationBarIndex
+            if high > high[offset] and close < close[offset] and volume > volume[offset] and ((close - low)/(high - low)) * 100 <= afterConfirmationBarCloseLowDiffInput
+                confirmationBarClose := potentialConfirmationBarClose
+                confirmationBarIndex := potentialConfirmationBarIndex
+                log.info("c5 confirmation bar {0}, value {1} confirmed", confirmationBarIndex, confirmationBarClose)
+                label.new(confirmationBarIndex, confirmationBarClose, "c5 (Sell!)", style = label.style_label_down, color=color.blue, textcolor =color.white, size = size.normal)
+                alert := true
+                changeStep := true
+
+        if not na(potentialConfirmationBarClose) and potentialConfirmationBarIndex >= potentialConfirmationBarIndex + 2 //2 bars wait for bar (6)
+            potentialConfirmationBarClose := na
+            potentialConfirmationBarIndex := 0
+
+        if na(potentialConfirmationBarClose)
+            atypicalBarOffset = bar_index - atypicalBarIndex
+            atypicalBarHigh = high[atypicalBarOffset]
+            atypicalBarLow = high[atypicalBarOffset]
+            atypicalBarVolume = volume[atypicalBarOffset]
+            percentFromAtypicalBarVolume = ((atypicalBarVolume - volume)/atypicalBarVolume) * 100
+            volumeCheck = percentFromAtypicalBarVolume > 0 and percentFromAtypicalBarVolume <= confirmationBarVolumePercentFromAtypicalBarInput
+            if volumeCheck and high > atypicalBarHigh //and close > atypicalBarClose
+                potentialConfirmationBarClose := close
+                potentialConfirmationBarIndex := bar_index
+                log.info("c5 potential confirmation bar {0}, value {1}", potentialConfirmationBarIndex, potentialConfirmationBarClose)
+
+            // else
+                // После атипичной небольшие колебания в пределах 5 баров не более 40% от той свечки (high - low).
+                // if (math.abs(high - low)/(atypicalBarHigh - atypicalBarLow)) * 100 > confirmationBarFluctuationInput
+                //     log.info("Fluctuations > 40% ", bar_index, (high-low)/2)
+                //     label.new(bar_index, low, "Reset >40% \n fluctuations", style = label.style_label_down, color=color.yellow, size = size.small)
+                //     potentialConfirmationBarClose := na
+                //     potentialConfirmationBarIndex := 0
+                //     reset := true
+
+        //skip third step
+        //if low < thirdLow or (not na(potentialConfirmationBarClose) and bar_index - potentialConfirmationBarIndex > confirmationBarWaitInput + 2) //2 bars wait for bar (6)
+        if low < secondLow or (not na(potentialConfirmationBarClose) and bar_index - atypicalBarIndex > confirmationBarWaitInput + 2) //2 bars wait for bar (6)
+            log.info("Below low or too far, reset, index {0} potentialConfirmationBarIndex {1}", bar_index, potentialConfirmationBarIndex)
+            label.new(bar_index, low, "Reset", style = label.style_label_up, color=color.yellow, size = size.small)
+            potentialConfirmationBarClose := na
+            potentialConfirmationBarIndex := 0
+            reset := true
+    //5 end
+
+    if (changeStep)
+        step := nextStep()
+    if (reset or step == 0)
+        //TODO delete labels ?
+        initlLocalHigh := na
+        initlLocalHighIndex := bar_index
+        firstLow := na
+        firstLowIndex := bar_index
+        firstHigh := na
+        firstHighIndex := bar_index
+        secondLow := na
+        secondLowIndex := bar_index
+        secondHigh := na
+        secondHighIndex := bar_index
+        //second
+        // thirdLow := na
+        // thirdLowIndex := bar_index
+        // thirdHigh := na
+        // thirdHighIndex := bar_index
+        atypicalBarClose := na
+        atypicalBarIndex := bar_index
+        confirmationBarClose := na
+        confirmationBarIndex := bar_index
+        step := LOCAL_HIGH_STEP
+
+alertcondition(alert, "Reversal on Volume from Top", "Reversal on Volume from Top has been spotted")
+
+// if not initiated
+plot(na, '', na)
